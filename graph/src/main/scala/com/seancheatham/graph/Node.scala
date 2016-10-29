@@ -36,6 +36,28 @@ abstract class Node {
   def toConstruct: Node.Construct =
     (id, label, data)
 
+  /**
+    * Fetches all incoming edges to this Node, with optional matches on label and data
+    *
+    * @param edgeLabel An optional edge label filter
+    * @param edgeData Key-value pairs which must be fulfilled
+    * @return an Iterator of edges
+    */
+  def ingressEdges(edgeLabel: Option[String] = None,
+                   edgeData: Map[String, JsValue] = Map.empty) =
+    graph.getIngressEdges[Edge](this, edgeLabel, edgeData)
+
+  /**
+    * Fetches all outgoing edges from this Node, with optional matches on label and data
+    *
+    * @param edgeLabel An optional edge label filter
+    * @param edgeData Key-value pairs which must be fulfilled
+    * @return an Iterator of edges
+    */
+  def egressEdges(edgeLabel: Option[String] = None,
+                   edgeData: Map[String, JsValue] = Map.empty) =
+    graph.getEgressEdges[Edge](this, edgeLabel, edgeData)
+
 }
 
 object Node {
