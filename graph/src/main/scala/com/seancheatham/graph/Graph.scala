@@ -11,6 +11,12 @@ import play.api.libs.json.JsValue
 abstract class Graph {
 
   /**
+    * Implicit self-reference
+    */
+  implicit def graph =
+    this
+
+  /**
     * A method which constructs a Node using the given information
     *
     * @return a Node
@@ -73,22 +79,14 @@ abstract class Graph {
   def getNode[N <: Node](id: String): Option[N]
 
   /**
-    * Retrieves all nodes which match the items in given data mapping
-    *
-    * @param data A key-value pairing which much match the returned nodes
-    * @return a collection of nodes
-    */
-  def getNodes[N <: Node](data: Map[String, JsValue]): TraversableOnce[N]
-
-  /**
     * Retrieves all nodes which match the given label and items in given data mapping
     *
-    * @param label The label which all returned nodes must have
+    * @param label The optional label which all returned nodes must have
     * @param data A key-value pairing which much match the returned nodes
     * @return a collection of nodes
     */
-  def getNodes[E <: Edge](label: String,
-                          data: Map[String, JsValue]): TraversableOnce[E]
+  def getNodes[N <: Node](label: Option[String],
+                          data: Map[String, JsValue]): TraversableOnce[N]
 
   /**
     * Retrieves all outgoing edges from the given node
@@ -139,5 +137,23 @@ abstract class Graph {
     * @return a Graph with the edge deleted
     */
   def removeEdge(edge: Edge): Graph
+
+  /**
+    * Updates the given Node, changing its data key-values using the given parameters
+    *
+    * @param node The Node to update
+    * @param changes The changes to make
+    * @return an updated Node
+    */
+  def updateNode[N <: Node](node: N)(changes: (String, JsValue)*): N
+
+  /**
+    * Updates the given Edge, changing its data key-values using the given parameters
+    *
+    * @param edge The Edge to update
+    * @param changes The changes to make
+    * @return an updated Edge
+    */
+  def updateEdge[E <: Edge](edge: E)(changes: (String, JsValue)*): E
 
 }

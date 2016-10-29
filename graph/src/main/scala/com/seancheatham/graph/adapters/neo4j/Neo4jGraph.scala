@@ -2,7 +2,7 @@ package com.seancheatham.graph.adapters.neo4j
 
 import com.seancheatham.graph.{Edge, Graph, Node}
 import org.neo4j.driver.v1._
-import play.api.libs.json._
+import play.api.libs.json.{JsObject, _}
 
 import scala.collection.JavaConverters._
 
@@ -20,15 +20,8 @@ class Neo4jGraph(private val driver: Driver) extends Graph {
         if (data.isEmpty)
           ""
         else
-          "{%s}"
-            .format(
-              data.map {
-                case (key, value) =>
-                  s"$key:${value.toString}"
-              }
-                .mkString(",")
-            )
-      s"CREATE(n:$label$dataContribution) RETURN ID(n) AS __id"
+          Neo4jGraph.jsValueToNeo4j(JsObject(data))
+      s"CREATE (n:$label$dataContribution) RETURN n"
     }
     val resultSet =
       session.run(query)
@@ -36,7 +29,11 @@ class Neo4jGraph(private val driver: Driver) extends Graph {
     val result =
       resultSet.single()
 
-    nodeFactory((result.get("__id").asString, label, data))(Neo4jGraph.this).asInstanceOf[N]
+    Node.fromJson(
+      Neo4jGraph.anyRefToJson(
+        result.get("n").asObject
+      ).as[JsObject]
+    ).asInstanceOf[N]
   }
 
   def addEdge[E <: Edge](_1: Node, _2: Node, label: String, data: Map[String, JsValue]) = {
@@ -45,17 +42,13 @@ class Neo4jGraph(private val driver: Driver) extends Graph {
         if (data.isEmpty)
           ""
         else
-          "{%s}"
-            .format(
-              data.map {
-                case (key, value) =>
-                  s"$key:${value.toString}"
-              }
-                .mkString(",")
-            )
-      s"""CREATE(n)-[e:$label$dataContribution]->(m)
-          |WHERE ID(n) = ${_1.id} AND ID(m) = ${_2.id}
-          |RETURN ID(e) as __id
+          Neo4jGraph.jsValueToNeo4j(JsObject(data))
+      s"""MATCH (n)
+          |WHERE ID(n) = ${_1.id}
+          |MATCH (m)
+          |WHERE ID(m) = ${_2.id}
+          |CREATE (n)-[e:$label$dataContribution]->(m)
+          |RETURN e
        """.stripMargin
     }
 
@@ -65,47 +58,49 @@ class Neo4jGraph(private val driver: Driver) extends Graph {
     val result =
       resultSet.single()
 
-    edgeFactory((result.get("__id").asString, label, _1, _2, data))(Neo4jGraph.this).asInstanceOf[E]
+    Edge.fromJson(
+      Neo4jGraph.anyRefToJson(
+        result.get("e").asObject
+      ).as[JsObject],
+      _1,
+      _2
+    ).asInstanceOf[E]
   }
 
   def getNode[N <: Node](id: String) = {
     val query =
-      s"MATCH(n) WHERE ID(n) = $id RETURN n, labels(n) as __labels"
+      s"MATCH (n) WHERE ID(n) = $id RETURN n"
+
     val resultSet =
       session.run(query)
 
     if (resultSet.hasNext) {
-
       val result =
         resultSet.single()
 
       Some(
-        nodeFactory(
-          id,
-          result.get("__labels").asList.asScala.head.toString,
-          result.asMap.asScala.toMap mapValues Neo4jGraph.anyRefToJson
-        )(this).asInstanceOf[N]
+        Node.fromJson(
+          Neo4jGraph.anyRefToJson(
+            result.get("n").asObject
+          ).as[JsObject]
+        ).asInstanceOf[N]
       )
     } else {
       None
     }
   }
 
-  def getNodes[N <: Node](data: Map[String, JsValue]) = {
+  def getNodes[N <: Node](label: Option[String] = None,
+                          data: Map[String, JsValue] = Map.empty) = {
     val query = {
+      val labelContribution =
+        label.fold("")(l => s":$l")
       val dataContribution =
         if (data.isEmpty)
           ""
         else
-          "{%s}"
-            .format(
-              data.map {
-                case (key, value) =>
-                  s"$key:${value.toString}"
-              }
-                .mkString(",")
-            )
-      s"MATCH(n$dataContribution) RETURN n, ID(n) as __id, LABELS(n) as __labels"
+          Neo4jGraph.jsValueToNeo4j(JsObject(data))
+      s"MATCH (n$labelContribution$dataContribution) RETURN n"
     }
 
     val resultSet =
@@ -119,138 +114,183 @@ class Neo4jGraph(private val driver: Driver) extends Graph {
         val record =
           resultSet.next()
 
-        nodeFactory(
-          record.get("__id").asString,
-          record.get("__labels").asList.asScala.head.toString,
-          data
-        )(Neo4jGraph.this).asInstanceOf[N]
+        Node.fromJson(
+          Neo4jGraph.anyRefToJson(
+            record.get("n").asObject
+          ).as[JsObject]
+        ).asInstanceOf[N]
       }
     }
   }
 
-  def getNodes[N <: Node](label: String, data: Map[String, JsValue]) = {
+  def getEgressEdges[E <: Edge](node: Node,
+                                edgeLabel: Option[String] = None,
+                                edgeData: Map[String, JsValue] = Map.empty) = {
     val query = {
+      val labelContribution =
+        edgeLabel.fold("")(s => s":$s")
+      val dataContribution =
+        if (edgeData.isEmpty)
+          ""
+        else
+          Neo4jGraph.jsValueToNeo4j(JsObject(edgeData))
+      s"""MATCH (n)-[e$labelContribution$dataContribution]->(o)
+          |WHERE ID(n) = ${node.id}
+          |RETURN e, o""".stripMargin
+    }
+
+    val resultSet =
+      session.run(query)
+
+    new Iterator[E] {
+      def hasNext =
+        resultSet.hasNext
+
+      def next() = {
+        val record =
+          resultSet.next()
+
+        Edge.fromJson(
+          Neo4jGraph.anyRefToJson(
+            record.get("e").asObject
+          ).as[JsObject],
+          node,
+          Node.fromJson(
+            Neo4jGraph.anyRefToJson(
+              record.get("o").asObject
+            ).as[JsObject]
+          )
+        ).asInstanceOf[E]
+
+      }
+    }
+  }
+
+  def getIngressEdges[E <: Edge](node: Node,
+                                 edgeLabel: Option[String] = None,
+                                 edgeData: Map[String, JsValue] = Map.empty) = {
+    val query = {
+      val labelContribution =
+        edgeLabel.fold("")(s => s":$s")
+      val dataContribution =
+        if (edgeData.isEmpty)
+          ""
+        else
+          Neo4jGraph.jsValueToNeo4j(JsObject(edgeData))
+      s"""MATCH (o)-[e$labelContribution$dataContribution]->(n)
+          |WHERE ID(n) = ${node.id}
+          |RETURN e, o""".stripMargin
+    }
+
+    val resultSet =
+      session.run(query)
+    new Iterator[E] {
+      def hasNext =
+        resultSet.hasNext
+
+      def next() = {
+        val record =
+          resultSet.next()
+
+        Edge.fromJson(
+          Neo4jGraph.anyRefToJson(
+            record.get("e").asObject
+          ).as[JsObject],
+          Node.fromJson(
+            Neo4jGraph.anyRefToJson(
+              record.get("o").asObject
+            ).as[JsObject]
+          ),
+          node
+        ).asInstanceOf[E]
+      }
+    }
+  }
+
+  def removeNode(node: Node) = {
+    val query =
+      s"MATCH (n) WHERE ID(n) = ${node.id} DETACH DELETE n"
+
+    session.run(query)
+
+    this
+  }
+
+  def removeNodes(label: Option[String] = None,
+                  data: Map[String, JsValue] = Map.empty) = {
+    val query = {
+      val labelContribution =
+        label.fold("")(s => s":$s")
       val dataContribution =
         if (data.isEmpty)
           ""
         else
-          "{%s}"
-            .format(
-              data.map {
-                case (key, value) =>
-                  s"$key:${value.toString}"
-              }
-                .mkString(",")
-            )
-      s"MATCH(n:$label$dataContribution) RETURN n, ID(n) as __id, LABELS(n) as __labels"
+          Neo4jGraph.jsValueToNeo4j(JsObject(data))
+      s"MATCH (n$labelContribution$dataContribution) DETACH DELETE n"
     }
 
-    val resultSet =
-      session.run(query)
+    session.run(query)
 
-    new Iterator[N] {
-      def hasNext =
-        resultSet.hasNext
-
-      def next() = {
-        val record =
-          resultSet.next()
-
-        nodeFactory(
-          record.get("__id").asString,
-          record.get("__labels").asList.asScala.head.toString,
-          (record.asMap.asScala.toMap - "__id" - "__labels")
-            .mapValues(Neo4jGraph.anyRefToJson)
-        )(Neo4jGraph.this).asInstanceOf[N]
-      }
-    }
+    this
   }
 
-  def getEgressEdges[E <: Edge](node: Node, edgeLabel: Option[String], edgeData: Map[String, JsValue]) = {
-    val query = {
-      val labelContribution =
-        edgeLabel.fold("")(s => s":$s")
-      val dataContribution =
-        if (edgeData.isEmpty)
-          ""
-        else
-          "{%s}"
-            .format(
-              edgeData.map {
-                case (key, value) =>
-                  s"$key:${value.toString}"
-              }
-                .mkString(",")
-            )
-      s"""(n)-[e$labelContribution$dataContribution]->(o)
-          |WHERE ID(n) = ${node.id}
-          |RETURN e, ID(e) as __id, LABELS(e) as __labels, o as __o""".stripMargin
-    }
+  def removeEdge(edge: Edge): Graph = {
+    val query =
+      s"MATCH ()-[e]->() WHERE ID(e) = ${edge.id} DELETE e"
 
-    val resultSet =
-      session.run(query)
+    session.run(query)
 
-    new Iterator[E] {
-      def hasNext =
-        resultSet.hasNext
-
-      def next() = {
-        val record =
-          resultSet.next()
-
-        edgeFactory(
-          record.get("__id").asString,
-          record.get("__labels").asList.asScala.head.toString,
-          node,
-          Node.fromJson(Neo4jGraph.anyRefToJson(record.get("__o").asNode).as[JsObject])(Neo4jGraph.this),
-          (record.asMap.asScala.toMap - "__id" - "__labels" - "__o")
-            .mapValues(Neo4jGraph.anyRefToJson)
-        )(Neo4jGraph.this).asInstanceOf[E]
-      }
-    }
+    this
   }
 
-  def getIngressEdges[E <: Edge](node: Node, edgeLabel: Option[String], edgeData: Map[String, JsValue]) = {
+  def updateNode[N <: Node](node: N)(changes: (String, JsValue)*) = {
     val query = {
-      val labelContribution =
-        edgeLabel.fold("")(s => s":$s")
-      val dataContribution =
-        if (edgeData.isEmpty)
-          ""
-        else
-          "{%s}"
-            .format(
-              edgeData.map {
-                case (key, value) =>
-                  s"$key:${value.toString}"
-              }
-                .mkString(",")
-            )
-      s"""(o)-[e$labelContribution$dataContribution]->(n)
+      val setter = {
+        val data =
+          Neo4jGraph.jsValueToNeo4j(JsObject(changes.toMap))
+        s"SET n += $data"
+      }
+      s"""MATCH (n)
           |WHERE ID(n) = ${node.id}
-          |RETURN e, ID(e) as __id, LABELS(e) as __labels, o as __o""".stripMargin
+          |$setter
+          |RETURN n
+       """.stripMargin
     }
 
     val resultSet =
       session.run(query)
-    new Iterator[E] {
-      def hasNext =
-        resultSet.hasNext
 
-      def next() = {
-        val record =
-          resultSet.next()
+    val result =
+      resultSet.single()
 
-        edgeFactory(
-          record.get("__id").asString,
-          record.get("__labels").asList.asScala.head.toString,
-          Node.fromJson(Neo4jGraph.anyRefToJson(record.get("__o").asNode).as[JsObject])(Neo4jGraph.this),
-          node,
-          (record.asMap.asScala.toMap - "__id" - "__labels" - "__o")
-            .mapValues(Neo4jGraph.anyRefToJson)
-        )(Neo4jGraph.this).asInstanceOf[E]
+    Node.fromJson(
+      Neo4jGraph.anyRefToJson(
+        result.get("n").asObject
+      ).as[JsObject]
+    ).asInstanceOf[N]
+  }
+
+  def updateEdge[E <: Edge](edge: E)(changes: (String, JsValue)*) = {
+    val query = {
+      val setter = {
+        val data =
+          Neo4jGraph.jsValueToNeo4j(JsObject(changes.toMap))
+        s"SET e += $data"
       }
+      s"""MATCH ()-[e]->()
+          |WHERE ID(e) = ${edge.id}
+          |$setter
+          |RETURN e
+       """.stripMargin
     }
+
+    session.run(query)
+
+    val updatedData =
+      (edge.data ++ (changes filterNot (_._2 == JsNull))) --
+        changes.collect { case (key, JsNull) => key }
+
+    edgeFactory((edge.id, edge.label, edge._1, edge._2, updatedData))(Neo4jGraph.this).asInstanceOf[E]
   }
 
 }
@@ -271,12 +311,18 @@ object Neo4jGraph {
     Option(r)
       .fold[JsValue](JsNull) {
       case v: String => JsString(v)
-      case v: java.lang.Long => JsNumber(BigDecimal(v.toString))
-      case v: java.lang.Double => JsNumber(BigDecimal(v.toString))
-      case v: java.lang.Number => JsNumber(BigDecimal(v.toString))
-      case v: java.lang.Boolean => JsBoolean(v)
-      case v: java.util.Map[String, AnyRef] => JsObject(v.asScala.toMap mapValues anyRefToJson)
-      case v: java.util.List[AnyRef] => JsArray(v.asScala map anyRefToJson)
+      case v: java.lang.Long =>
+        JsNumber(BigDecimal(v.toString))
+      case v: java.lang.Double =>
+        JsNumber(BigDecimal(v.toString))
+      case v: java.lang.Number =>
+        JsNumber(BigDecimal(v.toString))
+      case v: java.lang.Boolean =>
+        JsBoolean(v)
+      case v: java.util.Map[String@unchecked, AnyRef@unchecked] =>
+        JsObject(v.asScala.toMap mapValues anyRefToJson)
+      case v: java.util.List[AnyRef@unchecked] =>
+        JsArray(v.asScala map anyRefToJson)
       case v: org.neo4j.driver.v1.types.Node =>
         Json.obj(
           "id" -> v.id.toString,
@@ -295,5 +341,27 @@ object Neo4jGraph {
         )
       case v: org.neo4j.driver.v1.types.Path =>
         ???
+    }
+
+  def jsValueToNeo4j(v: JsValue): String =
+    v match {
+      case JsNull =>
+        "NULL"
+      case value: JsBoolean =>
+        Json.stringify(value).toUpperCase
+      case value: JsObject =>
+        val data =
+          value.value.map {
+            case (key, value1) =>
+              s"$key:${jsValueToNeo4j(value1)}"
+          }
+            .mkString(",")
+        s"{$data}"
+      case value: JsArray =>
+        val data =
+          value.value map jsValueToNeo4j mkString ","
+        s"{$data}"
+      case value =>
+        Json.stringify(value)
     }
 }

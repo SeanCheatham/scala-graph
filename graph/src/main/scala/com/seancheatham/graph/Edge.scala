@@ -66,7 +66,7 @@ object Edge {
         (json \ "label").as[String],
         _1,
         _2,
-        (json \ "data").as[Map[String, JsValue]],
+        (json \ "data").as[Map[String, JsValue]]
         )
     )(graph)
 
@@ -80,7 +80,7 @@ object Edge {
         (json \ "label").as[String],
         getNode1((json \ "_1").as[String]).get,
         getNode1((json \ "_2").as[String]).get,
-        (json \ "data").as[Map[String, JsValue]],
+        (json \ "data").as[Map[String, JsValue]]
         )
     )(graph)
 

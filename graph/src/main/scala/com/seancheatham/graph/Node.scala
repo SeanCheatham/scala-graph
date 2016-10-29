@@ -49,7 +49,7 @@ object Node {
       (
         (json \ "id").as[String],
         (json \ "label").as[String],
-        (json \ "data").as[Map[String, JsValue]],
+        (json \ "data").as[Map[String, JsValue]]
         )
     )(graph)
 
