@@ -12,7 +12,7 @@ abstract class Node {
   /**
     * This node's hosting graph
     */
-  def graph: Graph
+  implicit def graph: Graph
 
   /**
     * The unique identifier of this node, within the context of its graph
@@ -67,12 +67,7 @@ object Node {
   type Factory = Construct => Graph => Node
 
   implicit final def defaultFactory(construct: Construct)(nGraph: Graph) =
-    new Node {
-      val graph = nGraph
-      val id = construct._1
-      val label = construct._2
-      val data = construct._3
-    }
+    DefaultNode(construct._1, construct._2, construct._3)(nGraph)
 
   def fromJson(json: JsObject)(implicit graph: Graph): Node =
     graph.nodeFactory(
@@ -84,3 +79,7 @@ object Node {
     )(graph)
 
 }
+
+case class DefaultNode(id: String,
+                       label: String,
+                       data: Map[String, JsValue])(implicit val graph: Graph) extends Node

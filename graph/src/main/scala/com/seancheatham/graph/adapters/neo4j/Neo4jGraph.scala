@@ -25,7 +25,7 @@ class Neo4jGraph(private val driver: Driver)
           ""
         else
           jsValueToNeo4j(JsObject(data))
-      s"CREATE (n:${validateLabel(label)}$dataContribution) RETURN n"
+      s"CREATE (n:`$label`$dataContribution) RETURN n"
     }
     val resultSet =
       session.run(query)
@@ -51,7 +51,7 @@ class Neo4jGraph(private val driver: Driver)
           |WHERE ID(n) = ${_1.id}
           |MATCH (m)
           |WHERE ID(m) = ${_2.id}
-          |CREATE (n)-[e:${validateLabel(label)}$dataContribution]->(m)
+          |CREATE (n)-[e:`$label`$dataContribution]->(m)
           |RETURN e
        """.stripMargin
     }
@@ -98,7 +98,7 @@ class Neo4jGraph(private val driver: Driver)
                           data: Map[String, JsValue] = Map.empty) = {
     val query = {
       val labelContribution =
-        label.fold("")(l => s":${validateLabel(l)}")
+        label.fold("")(l => s":`$l`")
       val dataContribution =
         if (data.isEmpty)
           ""
@@ -132,7 +132,7 @@ class Neo4jGraph(private val driver: Driver)
                                 edgeData: Map[String, JsValue] = Map.empty) = {
     val query = {
       val labelContribution =
-        edgeLabel.fold("")(s => s":${validateLabel(s)}")
+        edgeLabel.fold("")(s => s":`$s`")
       val dataContribution =
         if (edgeData.isEmpty)
           ""
@@ -175,7 +175,7 @@ class Neo4jGraph(private val driver: Driver)
                                  edgeData: Map[String, JsValue] = Map.empty) = {
     val query = {
       val labelContribution =
-        edgeLabel.fold("")(s => s":${validateLabel(s)}")
+        edgeLabel.fold("")(s => s":`$s`")
       val dataContribution =
         if (edgeData.isEmpty)
           ""
@@ -224,7 +224,7 @@ class Neo4jGraph(private val driver: Driver)
                   data: Map[String, JsValue] = Map.empty) = {
     val query = {
       val labelContribution =
-        label.fold("")(s => s":${validateLabel(s)}")
+        label.fold("")(s => s":`$s`")
       val dataContribution =
         if (data.isEmpty)
           ""
@@ -361,7 +361,7 @@ object Neo4jGraph {
         val data =
           value.value.map {
             case (key, value1) =>
-              s"$key:${jsValueToNeo4j(value1)}"
+              s"`$key`:${jsValueToNeo4j(value1)}"
           }
             .mkString(",")
         s"{$data}"
@@ -372,10 +372,4 @@ object Neo4jGraph {
       case value =>
         Json.stringify(value)
     }
-
-  def validateLabel(original: String): String =
-    original.replaceAll("[^A-Za-z]", "").toUpperCase
-
-  def validatePropertyKey(original: String): String =
-    original.replaceAll("[^A-Za-z]", "")
 }

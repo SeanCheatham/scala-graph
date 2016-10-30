@@ -12,7 +12,7 @@ abstract class Edge {
   /**
     * This edge's hosting graph
     */
-  def graph: Graph
+  implicit def graph: Graph
 
   /**
     * The unique identifier of this edge, within the context of its graph
@@ -58,14 +58,13 @@ object Edge {
   type Factory = Construct => Graph => Edge
 
   implicit final def defaultFactory(construct: Construct)(nGraph: Graph) =
-    new Edge {
-      val graph = nGraph
-      val id = construct._1
-      val label = construct._2
-      val data = construct._5
-      val _1 = construct._3
-      val _2 = construct._4
-    }
+    DefaultEdge(
+      construct._1,
+      construct._2,
+      construct._3,
+      construct._4,
+      construct._5
+    )(nGraph)
 
   def fromJson(json: JsObject,
                _1: Node,
@@ -94,4 +93,33 @@ object Edge {
         )
     )(graph)
 
+}
+
+case class DefaultEdge(id: String,
+                       label: String,
+                       _1: Node,
+                       _2: Node,
+                       data: Map[String, JsValue])(implicit val graph: Graph) extends Edge
+
+case class DefaultWeightedEdge(id: String,
+                               label: String,
+                               _1: Node,
+                               _2: Node,
+                               data: Map[String, JsValue],
+                               weight: Float)(implicit val graph: Graph) extends Edge
+
+object DefaultWeightedEdge {
+  def apply(id: String,
+            label: String,
+           _1: Node,
+           _2: Node,
+            data: Map[String, JsValue])(implicit graph: Graph): DefaultWeightedEdge =
+    DefaultWeightedEdge(
+      id,
+      label,
+      _1,
+      _2,
+      data - "weight",
+      data("weight").as[Float]
+    )(graph)
 }
