@@ -57,6 +57,16 @@ object Edge {
 
   type Factory = Construct => Graph => Edge
 
+  implicit final def defaultFactory(construct: Construct)(nGraph: Graph) =
+    new Edge {
+      val graph = nGraph
+      val id = construct._1
+      val label = construct._2
+      val data = construct._5
+      val _1 = construct._3
+      val _2 = construct._4
+    }
+
   def fromJson(json: JsObject,
                _1: Node,
                _2: Node)(implicit graph: Graph): Edge =

@@ -22,14 +22,7 @@ abstract class Graph {
     * @return a Node
     */
   implicit def nodeFactory: Node.Factory =
-    (construct: Node.Construct) =>
-      (nGraph: Graph) =>
-        new Node {
-          val graph = nGraph
-          val id = construct._1
-          val label = construct._2
-          val data = construct._3
-        }
+    Node.defaultFactory
 
   /**
     * A method which constructs an Edge using the given information
@@ -37,16 +30,7 @@ abstract class Graph {
     * @return an Edge
     */
   implicit def edgeFactory: Edge.Factory =
-    (construct: Edge.Construct) =>
-      (nGraph: Graph) =>
-        new Edge {
-          val graph = nGraph
-          val id = construct._1
-          val label = construct._2
-          val data = construct._5
-          val _1 = construct._3
-          val _2 = construct._4
-        }
+    Edge.defaultFactory
 
   /**
     * Inserts a node into this graph

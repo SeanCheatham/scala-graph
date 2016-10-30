@@ -6,7 +6,9 @@ import play.api.libs.json.{JsObject, _}
 
 import scala.collection.JavaConverters._
 
-class Neo4jGraph(private val driver: Driver) extends Graph {
+class Neo4jGraph(private val driver: Driver)
+                (override implicit val nodeFactory: Node.Factory = Node.defaultFactory,
+                 override implicit val edgeFactory: Edge.Factory = Edge.defaultFactory) extends Graph {
 
   import com.seancheatham.graph.adapters.neo4j.Neo4jGraph._
 
@@ -298,13 +300,17 @@ class Neo4jGraph(private val driver: Driver) extends Graph {
 }
 
 object Neo4jGraph {
-  def apply(address: String): Neo4jGraph =
+  def apply(address: String)
+           (implicit nodeFactory: Node.Factory,
+            edgeFactory: Edge.Factory): Neo4jGraph =
     new Neo4jGraph(
       GraphDatabase.driver(address)
     )
 
   def apply(address: String,
-            auth: AuthToken): Neo4jGraph =
+            auth: AuthToken)
+           (implicit nodeFactory: Node.Factory,
+            edgeFactory: Edge.Factory): Neo4jGraph =
     new Neo4jGraph(
       GraphDatabase.driver(address, auth)
     )

@@ -66,6 +66,14 @@ object Node {
 
   type Factory = Construct => Graph => Node
 
+  implicit final def defaultFactory(construct: Construct)(nGraph: Graph) =
+    new Node {
+      val graph = nGraph
+      val id = construct._1
+      val label = construct._2
+      val data = construct._3
+    }
+
   def fromJson(json: JsObject)(implicit graph: Graph): Node =
     graph.nodeFactory(
       (
