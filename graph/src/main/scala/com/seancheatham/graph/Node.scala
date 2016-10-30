@@ -43,9 +43,9 @@ abstract class Node {
     * @param edgeData Key-value pairs which must be fulfilled
     * @return an Iterator of edges
     */
-  def ingressEdges(edgeLabel: Option[String] = None,
-                   edgeData: Map[String, JsValue] = Map.empty) =
-    graph.getIngressEdges[Edge](this, edgeLabel, edgeData)
+  def ingressEdges[E <: Edge](edgeLabel: Option[String] = None,
+                              edgeData: Map[String, JsValue] = Map.empty) =
+    graph.getIngressEdges[E](this, edgeLabel, edgeData)
 
   /**
     * Fetches all outgoing edges from this Node, with optional matches on label and data
@@ -54,9 +54,9 @@ abstract class Node {
     * @param edgeData Key-value pairs which must be fulfilled
     * @return an Iterator of edges
     */
-  def egressEdges(edgeLabel: Option[String] = None,
-                   edgeData: Map[String, JsValue] = Map.empty) =
-    graph.getEgressEdges[Edge](this, edgeLabel, edgeData)
+  def egressEdges[E <: Edge](edgeLabel: Option[String] = None,
+                             edgeData: Map[String, JsValue] = Map.empty) =
+    graph.getEgressEdges[E](this, edgeLabel, edgeData)
 
 }
 
