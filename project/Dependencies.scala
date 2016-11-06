@@ -15,7 +15,7 @@ object Dependencies {
 
   val typesafe =
     Seq(
-      "com.typesafe" % "config" % "1.3.0",
+      "com.typesafe" % "config" % "1.3.1",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
     )
 

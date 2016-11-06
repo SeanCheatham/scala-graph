@@ -1,6 +1,7 @@
 package com.seancheatham.graph.adapters.neo4j
 
 import com.seancheatham.graph.{Edge, Graph, Node}
+import com.typesafe.config.ConfigFactory
 import org.neo4j.driver.v1.AuthTokens
 import org.scalatest.WordSpec
 import play.api.libs.json.{JsBoolean, JsNumber, JsString, Json}
@@ -10,8 +11,15 @@ class Neo4jGraphSpec extends WordSpec {
 
   "A remote Neo4j Graph Database" can
     graphTest {
-      val address = ""
-      val token = AuthTokens.basic("", "")
+      val config =
+        ConfigFactory.load()
+      val address =
+        config.getString("neo4j.address")
+      val token =
+        AuthTokens.basic(
+          config.getString("neo4j.auth.user"),
+          config.getString("neo4j.auth.password")
+        )
       Neo4jGraph(address, token)
     }
 
