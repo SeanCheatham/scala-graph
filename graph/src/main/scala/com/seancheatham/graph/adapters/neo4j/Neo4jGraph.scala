@@ -46,7 +46,10 @@ class Neo4jGraph(private val driver: Driver)
     ).asInstanceOf[N]
   }
 
-  def addEdge[E <: Edge](_1: Node, _2: Node, label: String, data: Map[String, JsValue]) = {
+  def addEdge[E <: Edge](label: String,
+                         _1: Node,
+                         _2: Node,
+                         data: Map[String, JsValue]) = {
     val query = {
       val dataContribution =
         if (data.isEmpty)
@@ -500,7 +503,10 @@ class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
       .map(getNode[N])
       .get.get
 
-  def addEdge[E <: Edge](_1: Node, _2: Node, label: String, data: Map[String, JsValue]) =
+  def addEdge[E <: Edge](label: String,
+                         _1: Node,
+                         _2: Node,
+                         data: Map[String, JsValue]) =
     runInTransaction {
       val n1 = service.getNodeById(_1.id.toLong)
       val n2 = service.getNodeById(_2.id.toLong)

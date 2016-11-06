@@ -93,6 +93,11 @@ object Edge {
         )
     )(graph)
 
+  implicit class NodeEdgeSyntax(node: Node) {
+    def -(label: String) =
+      node -> label
+  }
+
 }
 
 case class DefaultEdge(id: String,

@@ -49,10 +49,25 @@ abstract class Graph {
     * @param data The edge's meta-data
     * @return a Graph with this edge added
     */
-  def addEdge[E <: Edge](_1: Node,
+  def addEdge[E <: Edge](label: String,
+                         _1: Node,
                          _2: Node,
-                         label: String,
                          data: Map[String, JsValue]): E
+
+  /**
+    * A helper alias for addEdge, which supports using the following syntax:
+    *
+    * .addEdge(a -"KNOWS"-> b)
+    *
+    * @see [[com.seancheatham.graph.Edge.NodeEdgeSyntax]]
+    *
+    * @param e A tuple in the form of ((_1, label), _2)
+    * @param data The edge's meta-data
+    * @return a Graph with this edge added
+    */
+  def addEdge[E <: Edge](e: ((Node, String), Node),
+                         data: Map[String, JsValue] = Map.empty): E =
+    addEdge[E](e._1._2, e._1._1, e._2, data)
 
   /**
     * Retrieves a node by ID from this graph

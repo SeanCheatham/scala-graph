@@ -77,6 +77,11 @@ val nodes: TraversableOnce[Node] =
 ```scala
 val edge1: Edge =
     graph.addEdge(node1, node2, "edge_label", Map("weight" -> Json.toJson(1.5)))
+
+// Or you can use some syntactic sugar:
+import com.seancheatham.graph.Edge.NodeEdgeSyntax
+val edge1: Edge =
+    graph.addEdge(node1 -"LABEL"-> node2, Map("weight" -> Json.toJson(1.5)))
 ```
 ## Fetch inbound or outbound edges for a node
 ```scala

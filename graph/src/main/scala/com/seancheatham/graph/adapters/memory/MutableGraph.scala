@@ -15,6 +15,12 @@ class MutableGraph extends Graph {
   private val edges =
     mutable.Map.empty[String, Edge]
 
+  def toImmutableGraph =
+    ImmutableGraph(
+      nodes.toMap.mapValues(_.toConstruct),
+      edges.toMap.mapValues(_.toConstruct)
+    )
+
   def addNode[N <: Node](label: String,
                          data: Map[String, JsValue]) = {
     val id =
@@ -25,9 +31,9 @@ class MutableGraph extends Graph {
     node
   }
 
-  def addEdge[E <: Edge](_1: Node,
+  def addEdge[E <: Edge](label: String,
+                         _1: Node,
                          _2: Node,
-                         label: String,
                          data: Map[String, JsValue]) = {
     val id =
       UUID.randomUUID().toString
@@ -159,10 +165,10 @@ class MutableGraph extends Graph {
             cleanItems.next()
 
           val node =
-            if(direction)
+            if (direction)
               edge._2
             else
-                edge._1
+              edge._1
 
           if (!distances.contains(node)) {
             distances += (node -> (distances.getOrElse(current, 0) + 1))

@@ -2,7 +2,7 @@ package fixtures
 
 import com.seancheatham.graph.{Edge, Graph, Node}
 import org.scalatest.WordSpec
-import play.api.libs.json.{JsBoolean, JsNumber, JsString, Json}
+import play.api.libs.json._
 
 abstract class GraphTest(graph: Graph) extends WordSpec {
 
@@ -17,7 +17,7 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
 
   "get a node by ID" in {
     val alsoNode1 =
-      graph.getNode[Node](node1.id).get
+      node1.graph.getNode[Node](node1.id).get
 
     assert(alsoNode1.label == "TEST")
 
@@ -28,7 +28,7 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
 
   "get a node by match" in {
     val alsoNode1 =
-      graph.getNodes[Node](Some("TEST"), Map("name" -> JsString("Foo"))).toIterator.next()
+      node1.graph.getNodes[Node](Some("TEST"), Map("name" -> JsString("Foo"))).toIterator.next()
 
     assert(alsoNode1.label == "TEST")
 
@@ -38,7 +38,7 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   }
 
   lazy val node2 =
-    graph.addNode[Node]("TEST", Map("name" -> JsString("Bar")))
+    node1.graph.addNode[Node]("TEST", Map("name" -> JsString("Bar")))
 
   "create another node" in {
     assert(node2.label == "TEST")
@@ -47,7 +47,7 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   }
 
   lazy val edge1 =
-    graph.addEdge[Edge](node1, node2, "TESTEDGE", Map("weight" -> Json.toJson(1.5)))
+    node2.graph.addEdge[Edge]("TESTEDGE", node1, node2, Map("weight" -> Json.toJson(1.5)))
 
   "connect two nodes" in {
     assert(edge1.label == "TESTEDGE")
@@ -56,7 +56,7 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   }
 
   lazy val node1OutgoingEdges =
-    graph.getEgressEdges[Edge](node1).toVector
+    edge1.graph.getEgressEdges[Edge](node1).toVector
 
   "get the outgoing edges for node1" in {
     assert(node1OutgoingEdges.size == 1)
@@ -66,7 +66,7 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   }
 
   lazy val node2IncomingEdges =
-    graph.getIngressEdges[Edge](node2).toVector
+    edge1.graph.getIngressEdges[Edge](node2).toVector
 
   "get the incoming edges for node2" in {
     assert(node2IncomingEdges.size == 1)
@@ -78,21 +78,25 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   "path from node1 to node5" in {
 
     val node3 =
-      graph.addNode[Node]("TEST", Map("name" -> JsString("a")))
+      edge1.graph.addNode[Node]("TEST", Map("name" -> JsString("a")))
 
     val node4 =
-      graph.addNode[Node]("OTHER_TEST", Map("name" -> JsString("b")))
+      node3.graph.addNode[Node]("OTHER_TEST", Map("name" -> JsString("b")))
 
     val node5 =
-      graph.addNode[Node]("TEST", Map("name" -> JsString("c")))
+      node4.graph.addNode[Node]("TEST", Map("name" -> JsString("c")))
 
-    graph.addEdge[Edge](node1, node5, "OTHER_TESTEDGE", Map.empty)
-    graph.addEdge[Edge](node1, node4, "TESTEDGE", Map("weight" -> Json.toJson(5)))
-    graph.addEdge[Edge](node2, node3, "TESTEDGE", Map("weight" -> Json.toJson(5)))
-    graph.addEdge[Edge](node3, node5, "TESTEDGE", Map("weight" -> Json.toJson(5)))
+    import com.seancheatham.graph.Edge.NodeEdgeSyntax
+
+    val withEdges =
+      node5.graph
+        .addEdge[Edge]("OTHER_TESTEDGE", node1, node5, Map.empty[String, JsValue]).graph
+        .addEdge[Edge](node1 -"TESTEDGE"-> node4, Map("weight" -> Json.toJson(5))).graph
+        .addEdge[Edge](node2 -"TESTEDGE"-> node3, Map("weight" -> Json.toJson(5))).graph
+        .addEdge[Edge](node3 -"TESTEDGE"-> node5, Map("weight" -> Json.toJson(5))).graph
 
     val paths =
-      graph.pathsTo(node1, node5, Seq("TEST"), Seq("TESTEDGE"))
+      withEdges.pathsTo(node1, node5, Seq("TEST"), Seq("TESTEDGE"))
         .toVector
 
     assert(paths.size == 1)
@@ -105,7 +109,7 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   }
 
   lazy val updatedNode1 =
-    graph.updateNode(node1)("name" -> JsString("Potato"), "other" -> JsBoolean(true))
+    edge1.graph.updateNode(node1)("name" -> JsString("Potato"), "other" -> JsBoolean(true))
 
   "update a node" in {
     assert(updatedNode1.id == node1.id)
@@ -114,42 +118,49 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   }
 
   lazy val updatedEdge1 =
-    graph.updateEdge(edge1)("weight" -> JsNumber(5.9))
+    updatedNode1.graph.updateEdge(edge1)("weight" -> JsNumber(5.9))
 
   "update an edge" in {
     assert(updatedEdge1.id == edge1.id)
     assert(updatedEdge1.data("weight").as[Float].toInt == 5)
   }
 
+  val oldEdgeSize =
+    updatedEdge1.graph.getIngressEdges[Edge](node2).toVector.size
+
+  lazy val withEdgeRemoved =
+    updatedEdge1.graph.removeEdge(edge1)
+
   "remove an edge" in {
-    graph.removeEdge(edge1)
 
-    val newEdges =
-      graph.getIngressEdges[Edge](node2).toVector
+    val newEdgeSize =
+      withEdgeRemoved.getIngressEdges[Edge](node2).toVector.size
 
-    assert(newEdges.isEmpty)
+    assert(newEdgeSize == (oldEdgeSize - 1))
   }
+
+  lazy val withNodeRemoved =
+    withEdgeRemoved.removeNode(node1)
 
   "remove a node" in {
 
     val nodes =
-      graph.getNodes[Node](Some("TEST")).toVector
-
-    graph.removeNode(node1)
+      withEdgeRemoved.getNodes[Node](Some("TEST")).toVector
 
     val newNodes =
-      graph.getNodes[Node](Some("TEST")).toVector
+      withNodeRemoved.getNodes[Node](Some("TEST")).toVector
 
     assert(newNodes.size == (nodes.size - 1))
 
-    assert(graph.getNode[Node](node1.id).isEmpty)
+    assert(withNodeRemoved.getNode[Node](node1.id).isEmpty)
   }
 
   "remove nodes" in {
-    graph.removeNodes(Some("TEST"))
+    val withNodesRemoved =
+      withNodeRemoved.removeNodes()
 
     val newNodes =
-      graph.getNodes[Node](Some("TEST")).toVector
+      withNodesRemoved.getNodes[Node]().toVector
 
     assert(newNodes.isEmpty)
   }
