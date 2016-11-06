@@ -9,11 +9,29 @@ lazy val commonSettings =
         Dependencies.logging
   )
 
-lazy val graph =
+lazy val graphCore =
   project
-    .in(file("graph"))
+    .in(file("core"))
     .settings(commonSettings: _*)
     .settings(
-      name := "graph",
+      name := "graph-core"
+    )
+
+lazy val memoryAdapter =
+  project
+    .in(file("memory"))
+    .settings(commonSettings: _*)
+    .settings(
+      name := "graph-memory-adapter"
+    )
+    .dependsOn(graphCore)
+
+lazy val graphNeo4jAdapter =
+  project
+    .in(file("neo4j"))
+    .settings(commonSettings: _*)
+    .settings(
+      name := "graph-neo4j-adapter",
       libraryDependencies ++= Dependencies.neo4j
     )
+    .dependsOn(graphCore)

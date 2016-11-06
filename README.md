@@ -18,13 +18,13 @@ This library is written in Scala.  It _might_ interoperate with other JVM langua
 ```scala
 import com.seancheatham.graph.adapters.memory.MutableGraph
 val graph =
-    new MutableGraph
+    new MutableGraph()
 ```
 ### Create an immutable in-memory graph:
 ```scala
 import com.seancheatham.graph.adapters.memory.MutableGraph
 val graph =
-    ImmutableGraph()
+    ImmutableGraph()()
 ```
 ### Create an embedded Neo4jGraph:
 ```scala
