@@ -1,10 +1,16 @@
 package com.seancheatham.graph.adapters.neo4j
 
-import com.seancheatham.graph.{Edge, Graph, Node}
+import java.io.File
+import java.util.UUID
+
+import com.seancheatham.graph.{Edge, Graph, Node, Path}
 import org.neo4j.driver.v1._
+import org.neo4j.graphdb.factory.GraphDatabaseFactory
+import org.neo4j.graphdb.{Direction, GraphDatabaseService, Label, RelationshipType}
 import play.api.libs.json.{JsObject, _}
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 class Neo4jGraph(private val driver: Driver)
                 (override implicit val nodeFactory: Node.Factory = Node.defaultFactory,
@@ -297,6 +303,43 @@ class Neo4jGraph(private val driver: Driver)
     edgeFactory((edge.id, edge.label, edge._1, edge._2, updatedData))(Neo4jGraph.this).asInstanceOf[E]
   }
 
+  def pathsTo(start: Node,
+              end: Node,
+              nodeLabels: Seq[String] = Seq.empty,
+              edgeLabels: Seq[String] = Seq.empty) = {
+    val query = {
+      val nodeFilterContribution =
+        if(nodeLabels.nonEmpty)
+          s"WHERE ALL(x IN NODES(path) WHERE x${nodeLabels.map(":" + _).mkString})"
+        else
+          ""
+
+      s"""MATCH (start{id:${start.id}}),
+          | (end{id:${end.id}}),
+          | path =(start)-[${edgeLabels.map(":" + _).mkString}*]-(end)
+          | $nodeFilterContribution
+          |RETURN path
+       """.stripMargin
+    }
+
+    val resultSet =
+      session.run(query)
+
+    new Iterator[Path] {
+      def hasNext =
+        resultSet.hasNext
+      def next() = {
+        val record =
+          resultSet.next()
+        Path.fromJson(
+          anyRefToJson(
+            record.get("path").asPath
+          ).as[JsObject]
+        )
+      }
+    }
+  }
+
 }
 
 object Neo4jGraph {
@@ -313,6 +356,12 @@ object Neo4jGraph {
             edgeFactory: Edge.Factory): Neo4jGraph =
     new Neo4jGraph(
       GraphDatabase.driver(address, auth)
+    )
+
+  def embedded(directory: String = s"/tmp/${UUID.randomUUID().toString}") =
+    new EmbeddedNeo4jGraph(
+      new GraphDatabaseFactory()
+        .newEmbeddedDatabase(new File(directory))
     )
 
   def anyRefToJson(r: AnyRef): JsValue =
@@ -338,6 +387,13 @@ object Neo4jGraph {
           "label" -> v.labels.asScala.head,
           "data" -> v.asMap.asScala.mapValues(anyRefToJson)
         )
+      case v: org.neo4j.kernel.impl.core.NodeProxy =>
+        Json.obj(
+          "id" -> v.getId.toString,
+          "type" -> "node",
+          "label" -> v.getLabels.asScala.head.name,
+          "data" -> v.getAllProperties.asScala.mapValues(anyRefToJson)
+        )
       case v: org.neo4j.driver.v1.types.Relationship =>
         Json.obj(
           "id" -> v.id.toString,
@@ -347,11 +403,46 @@ object Neo4jGraph {
           "_1" -> v.startNodeId.toString,
           "_2" -> v.endNodeId.toString
         )
+      case v: org.neo4j.kernel.impl.core.RelationshipProxy =>
+        Json.obj(
+          "id" -> v.getId.toString,
+          "type" -> "edge",
+          "label" -> v.getType.name,
+          "data" -> v.getAllProperties.asScala.mapValues(anyRefToJson),
+          "_1" -> v.getStartNode.getId.toString,
+          "_2" -> v.getEndNode.getId.toString
+        )
       case v: org.neo4j.driver.v1.types.Path =>
-        ???
+        Json.obj(
+          "start" -> anyRefToJson(v.start),
+          "path" -> v.asScala.map(s => anyRefToJson(s.relationship))
+        )
     }
 
-  def jsValueToNeo4j(v: JsValue): String =
+  def jsValueToAny(v: JsValue): Option[Any] =
+    v match {
+      case value: JsBoolean =>
+        Some(value.value)
+      case value: JsObject =>
+        // TODO: Fix me
+        val data =
+          value.value.map {
+            case (key, value1) =>
+              s"`$key`:${jsValueToAny(value1)}"
+          }
+            .mkString(",")
+        Some(s"{$data}")
+      case value: JsArray =>
+        Some((value.value map jsValueToAny).toArray)
+      case value: JsString =>
+        Some(value.value)
+      case value: JsNumber =>
+        Some(value.as[Float])
+      case JsNull =>
+        None
+    }
+
+  def jsValueToNeo4j(v: JsValue): Any =
     v match {
       case JsNull =>
         "NULL"
@@ -372,4 +463,199 @@ object Neo4jGraph {
       case value =>
         Json.stringify(value)
     }
+}
+
+class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
+                        (override implicit val nodeFactory: Node.Factory = Node.defaultFactory,
+                         override implicit val edgeFactory: Edge.Factory = Edge.defaultFactory) extends Graph {
+
+  import Neo4jGraph._
+
+  protected def runInTransaction[T](actions: => T) =
+    Try(service.beginTx())
+      .map { t =>
+        val result =
+          actions
+        t.success()
+        result
+      }
+
+  def addNode[N <: Node](label: String, data: Map[String, JsValue]) =
+    runInTransaction {
+      val node = service.createNode(Label.label(label))
+      data.foreach {
+        case (key, value) =>
+          jsValueToAny(value)
+            .fold[Unit](node.removeProperty(key))(node.setProperty(key, _))
+      }
+      node.getId.toString
+    }
+      .map(getNode[N])
+      .get.get
+
+  def addEdge[E <: Edge](_1: Node, _2: Node, label: String, data: Map[String, JsValue]) =
+    runInTransaction {
+      val n1 = service.getNodeById(_1.id.toLong)
+      val n2 = service.getNodeById(_2.id.toLong)
+      val rel = n1.createRelationshipTo(n2, RelationshipType.withName(label))
+      data.foreach {
+        case (key, value) =>
+          jsValueToAny(value)
+            .fold[Unit](rel.removeProperty(key))(rel.setProperty(key, _))
+      }
+      edgeFactory(rel.getId.toString, label, _1, _2, data)(this).asInstanceOf[E]
+    }
+      .get
+
+  def getNode[N <: Node](id: String) =
+    runInTransaction {
+      Try(service.getNodeById(id.toLong))
+        .toOption
+        .map(n =>
+          Node.fromJson(
+            anyRefToJson(n).as[JsObject]
+          )(this).asInstanceOf[N]
+        )
+    }
+      .get
+
+  def getNodes[N <: Node](label: Option[String] = None,
+                          data: Map[String, JsValue] = Map.empty) =
+    runInTransaction {
+      val nodes =
+        service.findNodes(Label.label(label.getOrElse("DEFAULT")))
+      nodes.asScala
+        .map(anyRefToJson)
+        .map(_.as[JsObject])
+        .map(Node.fromJson(_)(this))
+        .filter(n => data forall (d => n.data(d._1) == d._2))
+        .map(_.asInstanceOf[N])
+    }
+      .get
+
+  def getEgressEdges[E <: Edge](node: Node,
+                                edgeLabel: Option[String] = None,
+                                edgeData: Map[String, JsValue] = Map.empty) =
+    runInTransaction {
+      Try(service.getNodeById(node.id.toLong))
+        .map {
+          n =>
+            val relationships =
+              edgeLabel.fold(
+                n.getRelationships(Direction.OUTGOING)
+              )(eLabel => n.getRelationships(Direction.OUTGOING, RelationshipType.withName(eLabel)))
+                .asScala
+                .iterator
+
+            relationships
+              .map(anyRefToJson)
+              .map(_.as[JsObject])
+              .map(Edge.fromJson(_, getNode _, getNode _)(this).asInstanceOf[E])
+        }
+        .getOrElse(Iterator.empty)
+    }
+      .get
+
+  def getIngressEdges[E <: Edge](node: Node,
+                                 edgeLabel: Option[String] = None,
+                                 edgeData: Map[String, JsValue] = Map.empty) =
+    runInTransaction {
+      Try(service.getNodeById(node.id.toLong))
+        .map {
+          n =>
+            val relationships =
+              edgeLabel.fold(
+                n.getRelationships(Direction.INCOMING)
+              )(eLabel => n.getRelationships(Direction.INCOMING, RelationshipType.withName(eLabel)))
+                .asScala
+                .iterator
+
+            relationships
+              .map(anyRefToJson)
+              .map(_.as[JsObject])
+              .map(Edge.fromJson(_, getNode _, getNode _)(this).asInstanceOf[E])
+        }
+        .getOrElse(Iterator.empty)
+    }
+      .get
+
+  def removeNode(node: Node) =
+    runInTransaction {
+      Try(service.getNodeById(node.id.toLong))
+        .map {
+          n =>
+            n.delete()
+        }
+      this
+    }
+      .getOrElse(this)
+
+  def removeNodes(label: Option[String] = None,
+                  data: Map[String, JsValue] = Map.empty) =
+    runInTransaction {
+      val nodes =
+        service.findNodes(Label.label(label.getOrElse("DEFAULT")))
+      nodes.asScala
+        .map(n => n -> anyRefToJson(n).as[JsObject])
+        .toMap
+        .mapValues(_.as[JsObject])
+        .filter(n => data forall (d => (n._2 \ "data" \ d._1).toOption contains d._2))
+        .foreach(_._1.delete())
+      this
+    }
+      .getOrElse(this)
+
+  def removeEdge(edge: Edge): Graph =
+    runInTransaction {
+      Try(service.getRelationshipById(edge.id.toLong))
+        .map(_.delete)
+      this
+    }
+      .getOrElse(this)
+
+  def updateNode[N <: Node](node: N)(changes: (String, JsValue)*) =
+    runInTransaction {
+      Try(service.getNodeById(node.id.toLong))
+        .map {
+          n =>
+            changes.foreach {
+              case (key, value) =>
+                jsValueToAny(value)
+                  .fold[Unit](n.removeProperty(key))(n.setProperty(key, _))
+            }
+            Node.fromJson(
+              anyRefToJson(n).as[JsObject]
+            )(this).asInstanceOf[N]
+        }
+        .get
+    }
+      .get
+
+  def updateEdge[E <: Edge](edge: E)(changes: (String, JsValue)*) =
+    runInTransaction {
+      Try(service.getRelationshipById(edge.id.toLong))
+        .map {
+          rel =>
+            changes.foreach {
+              case (key, value) =>
+                jsValueToAny(value)
+                  .fold[Unit](rel.removeProperty(key))(rel.setProperty(key, _))
+            }
+
+            Edge.fromJson(
+              anyRefToJson(rel).as[JsObject],
+              getNode[Node] _,
+              getNode[Node] _
+            )(this).asInstanceOf[E]
+        }
+        .get
+    }
+      .get
+
+  def pathsTo(start: Node,
+              end: Node,
+              nodeLabels: Seq[String] = Seq.empty,
+              edgeLabels: Seq[String] = Seq.empty) =
+    ???
+
 }

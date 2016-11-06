@@ -69,8 +69,8 @@ abstract class Graph {
     * @param data A key-value pairing which much match the returned nodes
     * @return a collection of nodes
     */
-  def getNodes[N <: Node](label: Option[String],
-                          data: Map[String, JsValue]): TraversableOnce[N]
+  def getNodes[N <: Node](label: Option[String] = None,
+                          data: Map[String, JsValue] = Map.empty): TraversableOnce[N]
 
   /**
     * Retrieves all outgoing edges from the given node
@@ -81,8 +81,8 @@ abstract class Graph {
     * @return a collection of edges
     */
   def getEgressEdges[E <: Edge](node: Node,
-                                edgeLabel: Option[String],
-                                edgeData: Map[String, JsValue]): TraversableOnce[E]
+                                edgeLabel: Option[String] = None,
+                                edgeData: Map[String, JsValue] = Map.empty): TraversableOnce[E]
 
   /**
     * Retrieves all incoming edges to the given node
@@ -93,8 +93,8 @@ abstract class Graph {
     * @return a collection of edges
     */
   def getIngressEdges[E <: Edge](node: Node,
-                                 edgeLabel: Option[String],
-                                 edgeData: Map[String, JsValue]): TraversableOnce[E]
+                                 edgeLabel: Option[String] = None,
+                                 edgeData: Map[String, JsValue] = Map.empty): TraversableOnce[E]
 
   /**
     * Removes the given Node from this Graph
@@ -111,8 +111,8 @@ abstract class Graph {
     * @param data a key-value pairing to match
     * @return a Graph with the node deleted
     */
-  def removeNodes(label: Option[String],
-                  data: Map[String, JsValue]): Graph
+  def removeNodes(label: Option[String] = None,
+                  data: Map[String, JsValue] = Map.empty): Graph
 
   /**
     * Removes the given Edge from this Graph
@@ -139,5 +139,23 @@ abstract class Graph {
     * @return an updated Edge
     */
   def updateEdge[E <: Edge](edge: E)(changes: (String, JsValue)*): E
+
+  /**
+    * Finds all of the paths between the given node and the destination.
+    * 
+    * Optional filters can be provided and applied to items in the search.
+    * 
+    * @param start The starting Node
+    * @param end The target destination Node
+    * @param nodeLabels An inclusive list of labels to accept for nodes in the path
+    *                    An empty list will accept all nodes
+    * @param edgeLabels An inclusive list of labels to accept for edges in the path
+    *                    An empty list will accept all edges
+    * @return a collection of Paths, where the order is up to an implementer
+    */
+  def pathsTo(start: Node,
+              end: Node,
+              nodeLabels: Seq[String] = Seq.empty,
+              edgeLabels: Seq[String] = Seq.empty): TraversableOnce[Path]
 
 }

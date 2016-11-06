@@ -1,22 +1,29 @@
 package com.seancheatham.graph.adapters.neo4j
 
-import com.seancheatham.graph.{Edge, Node}
+import com.seancheatham.graph.{Edge, Graph, Node}
 import org.neo4j.driver.v1.AuthTokens
 import org.scalatest.WordSpec
 import play.api.libs.json.{JsBoolean, JsNumber, JsString, Json}
 
 class Neo4jGraphSpec extends WordSpec {
 
-  "A remote neo4j Graph Database" can {
+  val graphs =
+    Vector(
+      "A remote Neo4j Graph Database" -> {
+        val address = ""
+        val token = AuthTokens.basic("", "")
+        Neo4jGraph(address, token)
+      },
+      "An embedded Neo4j Graph Database" ->
+        Neo4jGraph.embedded()
+    )
 
-    val address =
-      "bolt://localhost"
+  graphs foreach {
+    case (title, graph) =>
+      title can graphTest(graph)
+  }
 
-    val token =
-      AuthTokens.basic("username", "password")
-
-    val graph =
-      Neo4jGraph(address, token)
+  def graphTest(graph: Graph) = {
 
     lazy val node1 =
       graph.addNode[Node]("TEST", Map("name" -> JsString("Foo")))
@@ -40,7 +47,7 @@ class Neo4jGraphSpec extends WordSpec {
 
     "get a node by match" in {
       val alsoNode1 =
-        graph.getNodes[Node](Some("TEST"), Map("name" -> JsString("Foo"))).next()
+        graph.getNodes[Node](Some("TEST"), Map("name" -> JsString("Foo"))).toIterator.next()
 
       assert(alsoNode1.label == "TEST")
 
@@ -65,6 +72,27 @@ class Neo4jGraphSpec extends WordSpec {
       assert(edge1.label == "TESTEDGE")
 
       assert(edge1.data("weight").as[Float] == 1.5)
+    }
+
+    "path from node1 to node3" in {
+
+      val node3 =
+        graph.addNode[Node]("TEST", Map("name" -> JsString("Baz")))
+
+      val edge2 =
+        graph.addEdge[Edge](node2, node3, "TESTEDGE", Map("weight" -> Json.toJson(5)))
+
+      val path =
+        graph.pathsTo(node1, node3, Seq("TEST"), Seq("TESTEDGE"))
+          .toIterator
+          .next()
+
+      assert(path.startNode.id == node1.id)
+
+      assert(path.nodes.exists(_.id == node2.id))
+
+      assert(path.endNode.id == node3.id)
+
     }
 
     lazy val node1OutgoingEdges =

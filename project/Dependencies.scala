@@ -4,7 +4,8 @@ object Dependencies {
 
   val neo4j =
     Seq(
-      "org.neo4j.driver" % "neo4j-java-driver" % "1.0.6"
+      "org.neo4j.driver" % "neo4j-java-driver" % "1.0.6",
+      "org.neo4j" % "neo4j" % "3.0.7"
     )
 
   val playJson =
