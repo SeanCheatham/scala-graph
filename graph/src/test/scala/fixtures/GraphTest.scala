@@ -55,26 +55,6 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
     assert(edge1.data("weight").as[Float] == 1.5)
   }
 
-  "path from node1 to node3" in {
-
-    val node3 =
-      graph.addNode[Node]("TEST", Map("name" -> JsString("Baz")))
-
-    val edge2 =
-      graph.addEdge[Edge](node2, node3, "TESTEDGE", Map("weight" -> Json.toJson(5)))
-
-    val paths =
-      graph.pathsTo(node1, node3, Seq("TEST"), Seq("TESTEDGE"))
-        .toVector
-
-    assert(paths.head.startNode.id == node1.id)
-
-    assert(paths.head.nodes.exists(_.id == node2.id))
-
-    assert(paths.head.endNode.id == node3.id)
-
-  }
-
   lazy val node1OutgoingEdges =
     graph.getEgressEdges[Edge](node1).toVector
 
@@ -93,6 +73,35 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
     assert(node2IncomingEdges.head._1.id == node1.id)
     assert(node2IncomingEdges.head.data("weight").as[Float] == 1.5)
     assert(node2IncomingEdges.head.label == "TESTEDGE")
+  }
+
+  "path from node1 to node5" in {
+
+    val node3 =
+      graph.addNode[Node]("TEST", Map("name" -> JsString("a")))
+
+    val node4 =
+      graph.addNode[Node]("OTHER_TEST", Map("name" -> JsString("b")))
+
+    val node5 =
+      graph.addNode[Node]("TEST", Map("name" -> JsString("c")))
+
+    graph.addEdge[Edge](node1, node5, "OTHER_TESTEDGE", Map.empty)
+    graph.addEdge[Edge](node1, node4, "TESTEDGE", Map("weight" -> Json.toJson(5)))
+    graph.addEdge[Edge](node2, node3, "TESTEDGE", Map("weight" -> Json.toJson(5)))
+    graph.addEdge[Edge](node3, node5, "TESTEDGE", Map("weight" -> Json.toJson(5)))
+
+    val paths =
+      graph.pathsTo(node1, node5, Seq("TEST"), Seq("TESTEDGE"))
+        .toVector
+
+    assert(paths.size == 1)
+
+    val path =
+      paths.head
+
+    assert(path.nodes.map(_.id) == Vector(node1.id, node2.id, node3.id, node5.id))
+
   }
 
   lazy val updatedNode1 =
@@ -122,13 +131,18 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   }
 
   "remove a node" in {
+
+    val nodes =
+      graph.getNodes[Node](Some("TEST")).toVector
+
     graph.removeNode(node1)
 
     val newNodes =
       graph.getNodes[Node](Some("TEST")).toVector
 
-    assert(newNodes.size == 2)
-    assert(newNodes.head.id == node2.id)
+    assert(newNodes.size == (nodes.size - 1))
+
+    assert(graph.getNode[Node](node1.id).isEmpty)
   }
 
   "remove nodes" in {

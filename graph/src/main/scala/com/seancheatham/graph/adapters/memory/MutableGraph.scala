@@ -159,7 +159,10 @@ class MutableGraph extends Graph {
             cleanItems.next()
 
           val node =
-            edge._2
+            if(direction)
+              edge._2
+            else
+                edge._1
 
           if (!distances.contains(node)) {
             distances += (node -> (distances.getOrElse(current, 0) + 1))
