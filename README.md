@@ -20,6 +20,12 @@ import com.seancheatham.graph.adapters.memory.MutableGraph
 val graph =
     new MutableGraph
 ```
+### Create an immutable in-memory graph:
+```scala
+import com.seancheatham.graph.adapters.memory.MutableGraph
+val graph =
+    ImmutableGraph()
+```
 ### Create an embedded Neo4jGraph:
 ```scala
 // Create a temporary Neo4j graph
@@ -62,11 +68,17 @@ import play.api.libs.json._
 
 val node1: Node = 
     graph.addNode("label", Map("name" -> JsString("potato")))
+// NOTE: The graph created previously may not be the same graph as `node1.graph`
+// Depending on the implementation of the Graph, a brand new graph may be created
+// after each change to it.  To be safe, once you modify `graph`, throw it out.
+// Generally, mutable graphs will re-use the same Graph for each change.
 ```
 ## Get a node by ID
 ```scala
 val alsoNode1: Option[Node] = 
     graph.getNode("1")
+    // OR, to be safe (see above)
+    node1.graph.getNode("1")
 ```
 ## Get nodes by label and/or data
 ```scala
