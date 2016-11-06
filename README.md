@@ -22,7 +22,7 @@ val graph =
 ```
 ### Create an immutable in-memory graph:
 ```scala
-import com.seancheatham.graph.adapters.memory.MutableGraph
+import com.seancheatham.graph.adapters.memory.ImmutableGraph
 val graph =
     ImmutableGraph()()
 ```

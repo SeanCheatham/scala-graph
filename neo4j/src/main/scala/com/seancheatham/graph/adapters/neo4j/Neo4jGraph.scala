@@ -14,16 +14,16 @@ import scala.util.Try
 
 object Neo4jGraph {
   def remote(address: String)
-           (implicit nodeFactory: Node.Factory,
-            edgeFactory: Edge.Factory): RemoteNeo4jGraph =
+            (implicit nodeFactory: Node.Factory,
+             edgeFactory: Edge.Factory): RemoteNeo4jGraph =
     new RemoteNeo4jGraph(
       GraphDatabase.driver(address)
     )
 
   def remote(address: String,
-            auth: AuthToken)
-           (implicit nodeFactory: Node.Factory,
-            edgeFactory: Edge.Factory): RemoteNeo4jGraph =
+             auth: AuthToken)
+            (implicit nodeFactory: Node.Factory,
+             edgeFactory: Edge.Factory): RemoteNeo4jGraph =
     new RemoteNeo4jGraph(
       GraphDatabase.driver(address, auth)
     )
@@ -248,21 +248,12 @@ class RemoteNeo4jGraph(private val driver: Driver)
     val resultSet =
       session.run(query)
 
-    new Iterator[N] {
-      def hasNext =
-        resultSet.hasNext
+    resultSet
+      .asScala
+      .map(_.get("n").asObject)
+      .map(anyRefToJson(_).as[JsObject])
+      .map(Node.fromJson(_).asInstanceOf[N])
 
-      def next() = {
-        val record =
-          resultSet.next()
-
-        Node.fromJson(
-          anyRefToJson(
-            record.get("n").asObject
-          ).as[JsObject]
-        ).asInstanceOf[N]
-      }
-    }
   }
 
   def getEgressEdges[E <: Edge](node: Node,
@@ -284,14 +275,9 @@ class RemoteNeo4jGraph(private val driver: Driver)
     val resultSet =
       session.run(query)
 
-    new Iterator[E] {
-      def hasNext =
-        resultSet.hasNext
-
-      def next() = {
-        val record =
-          resultSet.next()
-
+    resultSet
+      .asScala
+      .map(record =>
         Edge.fromJson(
           anyRefToJson(
             record.get("e").asObject
@@ -303,9 +289,7 @@ class RemoteNeo4jGraph(private val driver: Driver)
             ).as[JsObject]
           )
         ).asInstanceOf[E]
-
-      }
-    }
+      )
   }
 
   def getIngressEdges[E <: Edge](node: Node,
@@ -326,14 +310,10 @@ class RemoteNeo4jGraph(private val driver: Driver)
 
     val resultSet =
       session.run(query)
-    new Iterator[E] {
-      def hasNext =
-        resultSet.hasNext
 
-      def next() = {
-        val record =
-          resultSet.next()
-
+    resultSet
+      .asScala
+      .map(record =>
         Edge.fromJson(
           anyRefToJson(
             record.get("e").asObject
@@ -345,8 +325,7 @@ class RemoteNeo4jGraph(private val driver: Driver)
           ),
           node
         ).asInstanceOf[E]
-      }
-    }
+      )
   }
 
   def removeNode(node: Node) = {
@@ -457,20 +436,11 @@ class RemoteNeo4jGraph(private val driver: Driver)
     val resultSet =
       session.run(query)
 
-    new Iterator[Path] {
-      def hasNext =
-        resultSet.hasNext
-
-      def next() = {
-        val record =
-          resultSet.next()
-        Path.fromJson(
-          anyRefToJson(
-            record.get("path").asPath
-          ).as[JsObject]
-        )
-      }
-    }
+    resultSet
+      .asScala
+      .map(_.get("path").asPath)
+      .map(anyRefToJson(_).as[JsObject])
+      .map(Path.fromJson)
   }
 
 }
@@ -500,8 +470,9 @@ class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
       }
       node.getId.toString
     }
-      .map(getNode[N])
-      .get.get
+      .toOption
+      .flatMap(getNode[N])
+      .get
 
   def addEdge[E <: Edge](label: String,
                          _1: Node,
@@ -595,10 +566,7 @@ class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
   def removeNode(node: Node) =
     runInTransaction {
       Try(service.getNodeById(node.id.toLong))
-        .map {
-          n =>
-            n.delete()
-        }
+        .map(_.delete())
       this
     }
       .getOrElse(this)
@@ -608,7 +576,8 @@ class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
     runInTransaction {
       val nodes =
         service.findNodes(Label.label(label.getOrElse("DEFAULT")))
-      nodes.asScala
+      nodes
+        .asScala
         .map(n => n -> anyRefToJson(n).as[JsObject])
         .toMap
         .mapValues(_.as[JsObject])
