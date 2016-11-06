@@ -309,14 +309,14 @@ class Neo4jGraph(private val driver: Driver)
               edgeLabels: Seq[String] = Seq.empty) = {
     val query = {
       val nodeFilterContribution =
-        if(nodeLabels.nonEmpty)
-          s"WHERE ALL(x IN NODES(path) WHERE x${nodeLabels.map(":" + _).mkString})"
+        if (nodeLabels.nonEmpty)
+          s"AND ALL(x IN NODES(path) WHERE x${nodeLabels.map(":" + _).mkString})"
         else
           ""
 
-      s"""MATCH (start{id:${start.id}}),
-          | (end{id:${end.id}}),
+      s"""MATCH (start), (end),
           | path =(start)-[${edgeLabels.map(":" + _).mkString}*]-(end)
+          | WHERE ID(start) = ${start.id} AND ID(end) = ${end.id}
           | $nodeFilterContribution
           |RETURN path
        """.stripMargin
@@ -328,6 +328,7 @@ class Neo4jGraph(private val driver: Driver)
     new Iterator[Path] {
       def hasNext =
         resultSet.hasNext
+
       def next() = {
         val record =
           resultSet.next()
@@ -417,6 +418,12 @@ object Neo4jGraph {
           "start" -> anyRefToJson(v.start),
           "path" -> v.asScala.map(s => anyRefToJson(s.relationship))
         )
+      case v: org.neo4j.graphdb.Path =>
+        Json.obj(
+          "start" -> anyRefToJson(v.startNode),
+          "path" -> v.relationships.asScala.map(s => anyRefToJson(s))
+        )
+
     }
 
   def jsValueToAny(v: JsValue): Option[Any] =
@@ -656,6 +663,39 @@ class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
               end: Node,
               nodeLabels: Seq[String] = Seq.empty,
               edgeLabels: Seq[String] = Seq.empty) =
-    ???
+    runInTransaction {
+      val n1 = service.getNodeById(start.id.toLong)
+      val n2 = service.getNodeById(end.id.toLong)
+
+      val relationshipTypes =
+        edgeLabels
+          .map(RelationshipType.withName)
+
+      val description =
+        relationshipTypes
+          .foldLeft(service.traversalDescription)(_ relationships _)
+
+      val iterator =
+        description
+          .traverse(n1)
+          .iterator
+          .asScala
+          .filter(_.endNode.getId.toString == end.id)
+
+      iterator
+        .map(p =>
+          Path.fromJson(
+            anyRefToJson(p).as[JsObject]
+          )
+        )
+        .filter(
+          _.edges
+            .forall(e =>
+              nodeLabels.contains(e._1.label) &&
+                nodeLabels.contains(e._2.label)
+            )
+        )
+    }
+      .get
 
 }

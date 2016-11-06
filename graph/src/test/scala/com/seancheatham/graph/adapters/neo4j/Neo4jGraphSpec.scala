@@ -7,21 +7,18 @@ import play.api.libs.json.{JsBoolean, JsNumber, JsString, Json}
 
 class Neo4jGraphSpec extends WordSpec {
 
-  val graphs =
-    Vector(
-      "A remote Neo4j Graph Database" -> {
-        val address = ""
-        val token = AuthTokens.basic("", "")
-        Neo4jGraph(address, token)
-      },
-      "An embedded Neo4j Graph Database" ->
-        Neo4jGraph.embedded()
-    )
 
-  graphs foreach {
-    case (title, graph) =>
-      title can graphTest(graph)
-  }
+  "A remote Neo4j Graph Database" can
+    graphTest {
+      val address = ""
+      val token = AuthTokens.basic("", "")
+      Neo4jGraph(address, token)
+    }
+
+  "An embedded Neo4j Graph Database" can
+    graphTest(
+      Neo4jGraph.embedded()
+    )
 
   def graphTest(graph: Graph) = {
 
@@ -82,16 +79,15 @@ class Neo4jGraphSpec extends WordSpec {
       val edge2 =
         graph.addEdge[Edge](node2, node3, "TESTEDGE", Map("weight" -> Json.toJson(5)))
 
-      val path =
+      val paths =
         graph.pathsTo(node1, node3, Seq("TEST"), Seq("TESTEDGE"))
-          .toIterator
-          .next()
+          .toVector
 
-      assert(path.startNode.id == node1.id)
+      assert(paths.head.startNode.id == node1.id)
 
-      assert(path.nodes.exists(_.id == node2.id))
+      assert(paths.head.nodes.exists(_.id == node2.id))
 
-      assert(path.endNode.id == node3.id)
+      assert(paths.head.endNode.id == node3.id)
 
     }
 
@@ -147,7 +143,7 @@ class Neo4jGraphSpec extends WordSpec {
       val newNodes =
         graph.getNodes[Node](Some("TEST")).toVector
 
-      assert(newNodes.size == 1)
+      assert(newNodes.size == 2)
       assert(newNodes.head.id == node2.id)
     }
 
