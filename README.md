@@ -16,13 +16,19 @@ This library is written in Scala.  It _might_ interoperate with other JVM langua
 ## Create a Graph instance
 ### Create an embedded Neo4jGraph:
 ```scala
-import com.seancheatham.graph.adapters.neo4j._
 
-// Create a temporary graph
+// Create a temporary in-memory graph
+import com.seancheatham.graph.adapters.memory.MutableGraph
+val graph =
+    new MutableGraph
+
+// Create a temporary Neo4j graph
+import com.seancheatham.graph.adapters.neo4j._
 val graph = 
     Neo4jGraph.embedded()
     
 // Create a graph which persists to disk
+import com.seancheatham.graph.adapters.neo4j._
 val graph = 
     Neo4jGraph.embedded("/path/to/save/to")
 ```
