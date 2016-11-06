@@ -40,6 +40,31 @@ abstract class Edge {
     */
   def _2: Node
 
+  /**
+    * Creates an instance of this Edge in the graph.  This is a convenience which allows for edge
+    * sub-classes. and then inserting them.
+    *
+    * @return A NEW edge (with a different ID), with a potentially different edge.graph
+    */
+  def create =
+    graph.addEdge[this.type](this.label, _1, _2, this.data)
+
+  /**
+    * Updates this edge in the graph by overwriting all data values.
+    *
+    * @return A NEW, updated edge, with a potentially different edge.graph
+    */
+  def update =
+    graph.updateEdge[this.type](this)(this.data.toSeq: _*)
+
+  /**
+    * Removes this edge from the graph
+    *
+    * @return A new graph with this edge deleted
+    */
+  def remove =
+    graph.removeEdge(this)
+
 
   /**
     * Exports this Edge as a [[com.seancheatham.graph.Edge#Construct]]

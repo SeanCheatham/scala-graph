@@ -1,6 +1,6 @@
 package fixtures
 
-import com.seancheatham.graph.{Edge, Graph, Node}
+import com.seancheatham.graph.{DefaultNode, Edge, Graph, Node}
 import org.scalatest.WordSpec
 import play.api.libs.json._
 
@@ -78,10 +78,10 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   "path from node1 to node5" in {
 
     val node3 =
-      edge1.graph.addNode[Node]("TEST", Map("name" -> JsString("a")))
+      DefaultNode("", "TEST", Map("name" -> JsString("a")))(edge1.graph).create
 
     val node4 =
-      node3.graph.addNode[Node]("OTHER_TEST", Map("name" -> JsString("b")))
+      DefaultNode("", "TEST", Map("name" -> JsString("b")))(node3.graph).create
 
     val node5 =
       node4.graph.addNode[Node]("TEST", Map("name" -> JsString("c")))
@@ -89,11 +89,11 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
     import com.seancheatham.graph.Edge.NodeEdgeSyntax
 
     val withEdges =
-      node5.graph
-        .addEdge[Edge]("OTHER_TESTEDGE", node1, node5, Map.empty[String, JsValue]).graph
-        .addEdge[Edge](node1 -"TESTEDGE"-> node4, Map("weight" -> Json.toJson(5))).graph
+      node5
+        .createEdgeTo[Edge]("OTHER_TESTEDGE", node1, Map.empty[String, JsValue])._1
+        .createEdgeTo[Edge]("TESTEDGE", node4, Map("weight" -> Json.toJson(5))).graph
         .addEdge[Edge](node2 -"TESTEDGE"-> node3, Map("weight" -> Json.toJson(5))).graph
-        .addEdge[Edge](node3 -"TESTEDGE"-> node5, Map("weight" -> Json.toJson(5))).graph
+        .addEdge[Edge]("TESTEDGE", node3, node5, Map("weight" -> Json.toJson(5))).graph
 
     val paths =
       withEdges.pathsTo(node1, node5, Seq("TEST"), Seq("TESTEDGE"))

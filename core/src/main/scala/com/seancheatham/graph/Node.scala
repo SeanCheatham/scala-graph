@@ -58,6 +58,45 @@ abstract class Node {
                              edgeData: Map[String, JsValue] = Map.empty) =
     graph.getEgressEdges[E](this, edgeLabel, edgeData)
 
+  /**
+    * Creates an instance of this Node in the graph.  This is a convenience which allows for node
+    * sub-classes. and then inserting them.
+    *
+    * @return A NEW node (with a different ID), with a potentially different node.graph
+    */
+  def create =
+    graph.addNode[this.type](this.label, this.data)
+
+  /**
+    * Updates this node in the graph by overwriting all data values.
+    *
+    * @return A NEW, updated node, with a potentially different node.graph
+    */
+  def update =
+    graph.updateNode[this.type](this)(this.data.toSeq: _*)
+
+  /**
+    * Creates an edge with the given label, to the given node, with the given data.  Inserts the edge into this.graph.
+    *
+    * @param label The edge's label
+    * @param _2 The destination node
+    * @param data The edge's data
+    * @tparam E some type of Edge
+    * @return A NEW edge.  The edge's graph may be different from this node's graph, so throw this node away.
+    */
+  def createEdgeTo[E <: Edge](label: String,
+                              _2: Node,
+                              data: Map[String, JsValue] = Map.empty) =
+    graph.addEdge[E](label, this, _2, data)
+
+  /**
+    * Removes this node from the graph
+    *
+    * @return A new graph with this node deleted
+    */
+  def remove =
+    graph.removeNode(this)
+
 }
 
 object Node {

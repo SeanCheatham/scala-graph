@@ -15,23 +15,18 @@ object Dependencies {
 
   val typesafe =
     Seq(
-      "com.typesafe" % "config" % "1.3.1",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
+      "com.typesafe" % "config" % "1.3.0"
     )
 
   val test =
     Seq(
-      "org.scalatest" % "scalatest_2.11" % "2.2.5" % "test"
+      "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
     )
 
   val logging =
     Seq(
-      "ch.qos.logback" % "logback-classic" % "1.1.7"
-    )
-
-  val guava =
-    Seq(
-      "com.google.guava" % "guava" % "19.0"
+      "ch.qos.logback" % "logback-classic" % "1.1.7",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
     )
 
 }
