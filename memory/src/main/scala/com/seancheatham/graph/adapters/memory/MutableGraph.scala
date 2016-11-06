@@ -59,6 +59,19 @@ class MutableGraph(override implicit val nodeFactory: Node.Factory = Node.defaul
       )
       .map(_.asInstanceOf[N])
 
+  def getEdge[E <: Edge](id: String) =
+    edges get id map (_.asInstanceOf[E])
+
+  def getEdges[E <: Edge](label: Option[String],
+                          data: Map[String, JsValue]) =
+    edges.valuesIterator
+      .collect {
+        case e: E if label.fold(true)(_ == e.label) &&
+          data
+            .forall { case (key, value) => e.data(key) == value } =>
+          e
+      }
+
   def getEgressEdges[E <: Edge](node: Node, edgeLabel: Option[String], edgeData: Map[String, JsValue]) =
     edgeLabel
       .fold(edges.values)(l =>

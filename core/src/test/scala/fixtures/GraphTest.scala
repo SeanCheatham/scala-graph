@@ -55,6 +55,28 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
     assert(edge1.data("weight").as[Float] == 1.5)
   }
 
+  "get an edge by ID" in {
+    val alsoEdge1 =
+      edge1.graph.getEdge[Edge](edge1.id).get
+
+    assert(alsoEdge1.label == "TESTEDGE")
+
+    assert(alsoEdge1.data("weight").as[Float] == 1.5)
+
+    assert(edge1.id == alsoEdge1.id)
+  }
+
+  "get an edge by match" in {
+    val alsoEdge1 =
+      edge1.graph.getEdges[Edge](Some("TESTEDGE"), Map("weight" -> JsNumber(1.5))).toIterator.next()
+
+    assert(alsoEdge1.label == "TESTEDGE")
+
+    assert(alsoEdge1.data("weight").as[Float] == 1.5)
+
+    assert(edge1.id == alsoEdge1.id)
+  }
+
   lazy val node1OutgoingEdges =
     edge1.graph.getEgressEdges[Edge](node1).toVector
 

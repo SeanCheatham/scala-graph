@@ -83,6 +83,19 @@ case class ImmutableGraph(private val nodeConstructs: Map[String, Node.Construct
       )
       .map(nodeFactory(_)(this).asInstanceOf[N])
 
+  def getEdge[E <: Edge](id: String) =
+    edgeConstructs get id map (edgeFactory(_)(this).asInstanceOf[E])
+
+  def getEdges[E <: Edge](label: Option[String],
+                          data: Map[String, JsValue]) =
+    edgeConstructs.valuesIterator
+      .collect {
+        case ec if label.fold(true)(_ == ec._2) &&
+          data
+            .forall { case (key, value) => ec._5(key) == value } =>
+          edgeFactory(ec)(this).asInstanceOf[E]
+      }
+
   def getEgressEdges[E <: Edge](node: Node, edgeLabel: Option[String], edgeData: Map[String, JsValue]) =
     edgeLabel
       .fold(edgeConstructs.values)(l =>

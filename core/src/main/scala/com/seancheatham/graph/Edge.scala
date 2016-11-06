@@ -65,7 +65,6 @@ abstract class Edge {
   def remove =
     graph.removeEdge(this)
 
-
   /**
     * Exports this Edge as a [[com.seancheatham.graph.Edge#Construct]]
     * @return an Edge.EdgeConstruct

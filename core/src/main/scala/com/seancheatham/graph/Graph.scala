@@ -1,6 +1,6 @@
 package com.seancheatham.graph
 
-import play.api.libs.json.JsValue
+import play.api.libs.json.{JsValue, Json, Writes}
 
 /**
   * A "Graph" is an interconnected web of data.  Containers of data ([[com.seancheatham.graph.Node]])
@@ -88,6 +88,25 @@ abstract class Graph {
                           data: Map[String, JsValue] = Map.empty): TraversableOnce[N]
 
   /**
+    * Fetch the edge with the given ID
+    *
+    * @param id The edge's ID
+    * @tparam E Edge type
+    * @return An optional Edge if found
+    */
+  def getEdge[E <: Edge](id: String): Option[E]
+
+  /**
+    * Retrieves all edge which match the given label and items in given data mapping
+    *
+    * @param label The optional label which all returned edges must have
+    * @param data A key-value pairing which much match the returned edges
+    * @return a collection of edges
+    */
+  def getEdges[E <: Edge](label: Option[String] = None,
+                          data: Map[String, JsValue] = Map.empty): TraversableOnce[E]
+
+  /**
     * Retrieves all outgoing edges from the given node
     *
     * @param node The _1 node
@@ -172,5 +191,38 @@ abstract class Graph {
               end: Node,
               nodeLabels: Seq[String] = Seq.empty,
               edgeLabels: Seq[String] = Seq.empty): TraversableOnce[Path]
+
+}
+
+object Graph {
+
+  implicit val writes =
+    Writes[Graph](
+      graph =>
+        Json.obj(
+          "nodes" ->
+            graph.getNodes[Node]()
+              .toSeq
+              .map(node =>
+                Json.obj(
+                  "id" -> node.id,
+                  "label" -> node.label,
+                  "data" -> node.data
+                )
+              ),
+          "edges" ->
+            graph.getEdges[Edge]()
+              .toSeq
+              .map(edge =>
+                Json.obj(
+                  "id" -> edge.id,
+                  "label" -> edge.label,
+                  "_1" -> edge._1.id,
+                  "_2" -> edge._2.id,
+                  "data" -> edge.data
+                )
+              )
+        )
+    )
 
 }

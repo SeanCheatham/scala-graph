@@ -256,6 +256,81 @@ class RemoteNeo4jGraph(private val driver: Driver)
 
   }
 
+  def getEdge[E <: Edge](id: String) = {
+    val query =
+      s"""MATCH (a) -[e]-> (b)
+          |WHERE ID(e) = $id
+          |RETURN e, a, b
+       """.stripMargin
+
+    val resultSet =
+      session.run(query)
+
+    val maybeRecord =
+      if (resultSet.hasNext)
+        Some(resultSet.next())
+      else
+        None
+
+    maybeRecord map (record =>
+      Edge.fromJson(
+        anyRefToJson(
+          record.get("e").asObject
+        ).as[JsObject],
+
+        Node.fromJson(
+          anyRefToJson(
+            record.get("a").asObject
+          ).as[JsObject]
+        ),
+        Node.fromJson(
+          anyRefToJson(
+            record.get("b").asObject
+          ).as[JsObject]
+        )
+      ).asInstanceOf[E]
+      )
+  }
+
+  def getEdges[E <: Edge](label: Option[String],
+                          data: Map[String, JsValue]) = {
+    val query = {
+      val labelContribution =
+        label.fold("")(l => s":`$l`")
+      val dataContribution =
+        if (data.isEmpty)
+          ""
+        else
+          jsValueToNeo4j(JsObject(data))
+      s"""MATCH (a) -[e$labelContribution$dataContribution]-> (b)
+          |RETURN e, a, b
+       """.stripMargin
+    }
+
+    val resultSet =
+      session.run(query)
+
+    resultSet
+      .asScala
+      .map(record =>
+        Edge.fromJson(
+          anyRefToJson(
+            record.get("e").asObject
+          ).as[JsObject],
+          Node.fromJson(
+            anyRefToJson(
+              record.get("a").asObject
+            ).as[JsObject]
+          ),
+          Node.fromJson(
+            anyRefToJson(
+              record.get("b").asObject
+            ).as[JsObject]
+          )
+        ).asInstanceOf[E]
+      )
+  }
+
   def getEgressEdges[E <: Edge](node: Node,
                                 edgeLabel: Option[String] = None,
                                 edgeData: Map[String, JsValue] = Map.empty) = {
@@ -516,6 +591,39 @@ class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
         .map(_.asInstanceOf[N])
     }
       .get
+
+  def getEdge[E <: Edge](id: String) =
+    runInTransaction {
+      Try(service.getRelationshipById(id.toLong))
+        .toOption
+        .map(n =>
+          Edge.fromJson(
+            anyRefToJson(n).as[JsObject],
+            getNode[Node] _,
+            getNode[Node] _
+          )(this).asInstanceOf[E]
+        )
+    }
+      .get
+
+  def getEdges[E <: Edge](label: Option[String],
+                          data: Map[String, JsValue]) =
+    runInTransaction {
+      val l =
+        RelationshipType.withName(label.getOrElse("DEFAULT"))
+      val relationships =
+        service.getAllRelationships
+          .asScala
+      val labelFiltered =
+        label.fold(relationships)(l =>
+          relationships.filter(_.isType(RelationshipType.withName(l)))
+        )
+      val dataFiltered =
+        labelFiltered
+          .map(anyRefToJson(_).as[JsObject])
+          .map(Edge.fromJson(_, getNode[Node] _, getNode[Node] _)(this).asInstanceOf[E])
+      dataFiltered
+    }.get
 
   def getEgressEdges[E <: Edge](node: Node,
                                 edgeLabel: Option[String] = None,
