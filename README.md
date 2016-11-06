@@ -12,9 +12,9 @@ My current focus is on providing an abstraction for the *Neo4j* graph database. 
 # Usage
 This library is written in Scala.  It _might_ interoperate with other JVM languages, but I make no guarantees.
 
-1. Include the library in your project.
-2. Create a Graph instance
-   * Create an embedded Neo4jGraph:
+## Include the library in your project.
+## Create a Graph instance
+### Create an embedded Neo4jGraph:
 ```scala
 import com.seancheatham.graph.adapters.neo4j._
 
@@ -26,7 +26,8 @@ val graph =
 val graph = 
     Neo4jGraph.embedded("/path/to/save/to")
 ```
-   * Connect to a remote Neo4j Instance
+
+### Connect to a remote Neo4j Instance
 ```scala
 import com.seancheatham.graph.adapters.neo4j._
 
@@ -48,29 +49,30 @@ val graph =
 val graph =
     Neo4jGraph(address)
 ```
-3. Create a node
+
+## Create a node
 ```scala
 impoort play.api.libs.json._
 
 val node1: Node = 
     graph.addNode("label", Map("name" -> JsString("potato")))
 ```
-4. Get a node by ID
+## Get a node by ID
 ```scala
 val alsoNode1: Option[Node] = 
     graph.getNode("1")
 ```
-5. Get nodes by label and/or data
+## Get nodes by label and/or data
 ```scala
 val nodes: TraversableOnce[Node] = 
     graph.getNodes(Some("label"), Map("name" -> JsString("potato")))
 ```
-6. Create an edge between two nodes
+## Create an edge between two nodes
 ```scala
 val edge1: Edge =
     graph.addEdge(node1, node2, "edge_label", Map("weight" -> Json.toJson(1.5)))
 ```
-7. Fetch inbound or outbound edges for a node
+## Fetch inbound or outbound edges for a node
 ```scala
 val incomingEdges: TraversableOnce[Edge] =
     graph.getIngressEdges(node1)
@@ -78,7 +80,7 @@ val incomingEdges: TraversableOnce[Edge] =
 val outgoingEdges: TraversableOnce[Edge] =
     graph.getEgressEdges(node1)
 ```
-8. Update a node/edge
+## Update a node/edge
 ```scala
 val updatedNode1 =
     graph.updateNode(node1)("name" -> JsString("carrot"), "category" -> JsString("vegetable"))
