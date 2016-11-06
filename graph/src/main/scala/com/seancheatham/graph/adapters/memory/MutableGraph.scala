@@ -2,7 +2,7 @@ package com.seancheatham.graph.adapters.memory
 
 import java.util.UUID
 
-import com.seancheatham.graph.{Edge, Graph, Node}
+import com.seancheatham.graph.{Edge, Graph, Node, Path}
 import play.api.libs.json.JsValue
 
 import scala.collection.mutable
@@ -120,5 +120,83 @@ class MutableGraph extends Graph {
     newEdge
   }
 
-  def pathsTo(start: Node, end: Node, nodeLabels: Seq[String], edgeLabels: Seq[String]) = ???
+  /**
+    * Performs Breadth-First Search, returning a collection with the single item
+    * being a path from start to end.
+    */
+  def pathsTo(start: Node,
+              end: Node,
+              nodeLabels: Seq[String],
+              edgeLabels: Seq[String]) = {
+    val distances =
+      mutable.Map.empty[Node, Int]
+
+    val parents =
+      mutable.Map.empty[Node, (Edge, Boolean)]
+
+    val queue =
+      mutable.Queue[Node](start)
+
+    var continue =
+      true
+
+    while (continue && queue.nonEmpty) {
+
+      val current =
+        queue.dequeue()
+
+      def f(items: Iterator[Edge],
+            direction: Boolean) = {
+
+        val cleanItems =
+          items
+            .filter(edgeLabels contains _.label)
+            .filter(nodeLabels contains _._1.label)
+            .filter(nodeLabels contains _._2.label)
+
+        while (continue && cleanItems.hasNext) {
+          val edge =
+            cleanItems.next()
+
+          val node =
+            edge._2
+
+          if (!distances.contains(node)) {
+            distances += (node -> (distances.getOrElse(current, 0) + 1))
+            parents += (node -> (edge, direction))
+            queue.enqueue(node)
+          }
+
+          if (node == end)
+            continue = false
+        }
+      }
+
+      f(current.egressEdges[Edge]().toIterator, direction = true)
+      f(current.ingressEdges[Edge]().toIterator, direction = false)
+    }
+
+    val trail =
+      mutable.Stack[Edge]()
+
+    var node =
+      end
+
+    while (node != start) {
+      val (edge, direction) =
+        parents(node)
+
+      trail.push(edge)
+
+      if (direction)
+        node = edge._1
+      else
+        node = edge._2
+    }
+
+    val path =
+      Path(start, trail.toVector)
+
+    Vector(path)
+  }
 }

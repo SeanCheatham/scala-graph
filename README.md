@@ -58,7 +58,7 @@ val graph =
 
 ## Create a node
 ```scala
-impoort play.api.libs.json._
+import play.api.libs.json._
 
 val node1: Node = 
     graph.addNode("label", Map("name" -> JsString("potato")))
