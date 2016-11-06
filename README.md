@@ -14,14 +14,14 @@ This library is written in Scala.  It _might_ interoperate with other JVM langua
 
 ## Include the library in your project.
 ## Create a Graph instance
-### Create an embedded Neo4jGraph:
+### Create a mutable in-memory graph:
 ```scala
-
-// Create a temporary in-memory graph
 import com.seancheatham.graph.adapters.memory.MutableGraph
 val graph =
     new MutableGraph
-
+```
+### Create an embedded Neo4jGraph:
+```scala
 // Create a temporary Neo4j graph
 import com.seancheatham.graph.adapters.neo4j._
 val graph = 
