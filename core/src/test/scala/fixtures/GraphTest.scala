@@ -100,10 +100,10 @@ abstract class GraphTest(graph: Graph) extends WordSpec {
   "path from node1 to node5" in {
 
     val node3 =
-      DefaultNode("", "TEST", Map("name" -> JsString("a")))(edge1.graph).create
+      DefaultNode("", "TEST", Map("name" -> JsString("a")))(edge1.graph).create[Node]
 
     val node4 =
-      DefaultNode("", "TEST", Map("name" -> JsString("b")))(node3.graph).create
+      DefaultNode("", "TEST", Map("name" -> JsString("b")))(node3.graph).create[Node]
 
     val node5 =
       node4.graph.addNode[Node]("TEST", Map("name" -> JsString("c")))

@@ -46,16 +46,16 @@ abstract class Edge {
     *
     * @return A NEW edge (with a different ID), with a potentially different edge.graph
     */
-  def create =
-    graph.addEdge[this.type](this.label, _1, _2, this.data)
+  def create[E <: Edge] =
+    graph.addEdge[E](this.label, _1, _2, this.data)
 
   /**
     * Updates this edge in the graph by overwriting all data values.
     *
     * @return A NEW, updated edge, with a potentially different edge.graph
     */
-  def update =
-    graph.updateEdge[this.type](this)(this.data.toSeq: _*)
+  def update[E <: Edge] =
+    graph.updateEdge[E](this.asInstanceOf[E])(this.data.toSeq: _*)
 
   /**
     * Removes this edge from the graph

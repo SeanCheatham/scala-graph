@@ -64,16 +64,16 @@ abstract class Node {
     *
     * @return A NEW node (with a different ID), with a potentially different node.graph
     */
-  def create =
-    graph.addNode[this.type](this.label, this.data)
+  def create[N <: Node] =
+    graph.addNode[N](this.label, this.data)
 
   /**
     * Updates this node in the graph by overwriting all data values.
     *
     * @return A NEW, updated node, with a potentially different node.graph
     */
-  def update =
-    graph.updateNode[this.type](this)(this.data.toSeq: _*)
+  def update[N <: Node] =
+    graph.updateNode[N](this.asInstanceOf[N])(this.data.toSeq: _*)
 
   /**
     * Creates an edge with the given label, to the given node, with the given data.  Inserts the edge into this.graph.
