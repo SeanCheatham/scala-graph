@@ -8,6 +8,7 @@ import play.api.libs.json.{JsObject, JsValue}
   * has a label, as well as extra meta-data represented as a JSON-serializable mapping.
   */
 abstract class Edge {
+  import com.seancheatham.graph.utility.JsonTools.JsonMapHelper
 
   /**
     * This edge's hosting graph
@@ -47,7 +48,7 @@ abstract class Edge {
     * @return A NEW edge (with a different ID), with a potentially different edge.graph
     */
   def create[E <: Edge] =
-    graph.addEdge[E](this.label, _1, _2, this.data)
+    graph.addEdge[E](this.label, _1, _2, this.data.withoutNulls)
 
   /**
     * Updates this edge in the graph by overwriting all data values.
@@ -70,7 +71,7 @@ abstract class Edge {
     * @return an Edge.EdgeConstruct
     */
   def toConstruct: Edge.Construct =
-    (id, label, _1, _2, data)
+    (id, label, _1, _2, data.withoutNulls)
 
 }
 

@@ -28,7 +28,9 @@ object Neo4jGraph {
       GraphDatabase.driver(address, auth)
     )
 
-  def embedded(directory: String = s"/tmp/${UUID.randomUUID().toString}") =
+  def embedded(directory: String = s"/tmp/${UUID.randomUUID().toString}")
+              (implicit nodeFactory: Node.Factory,
+               edgeFactory: Edge.Factory)=
     new EmbeddedNeo4jGraph(
       new GraphDatabaseFactory()
         .newEmbeddedDatabase(new File(directory))

@@ -8,6 +8,7 @@ import play.api.libs.json.{JsObject, JsValue}
   * connected to other nodes in the form of [[com.seancheatham.graph.Edge]]s.
   */
 abstract class Node {
+  import com.seancheatham.graph.utility.JsonTools.JsonMapHelper
 
   /**
     * This node's hosting graph
@@ -34,7 +35,7 @@ abstract class Node {
     * @return a Node.NodeConstruct
     */
   def toConstruct: Node.Construct =
-    (id, label, data)
+    (id, label, data.withoutNulls)
 
   /**
     * Fetches all incoming edges to this Node, with optional matches on label and data
@@ -65,7 +66,7 @@ abstract class Node {
     * @return A NEW node (with a different ID), with a potentially different node.graph
     */
   def create[N <: Node] =
-    graph.addNode[N](this.label, this.data)
+    graph.addNode[N](this.label, this.data.withoutNulls)
 
   /**
     * Updates this node in the graph by overwriting all data values.
