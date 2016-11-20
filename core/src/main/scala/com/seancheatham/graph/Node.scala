@@ -109,6 +109,26 @@ object Node {
   implicit final def defaultFactory(construct: Construct)(nGraph: Graph) =
     DefaultNode(construct._1, construct._2, construct._3)(nGraph)
 
+  implicit val writes =
+    Writes[Node](
+      node =>
+        Json.obj(
+          "id" -> node.id,
+          "label" -> node.label,
+          "data" -> node.data
+        )
+    )
+
+  implicit def reads(implicit graph: Graph) =
+    Reads[Node](
+      json =>
+        (
+          (json \ "id").as[String],
+          (json \ "label").as[String],
+          (json \ "data").as[Map[String, JsValue]]
+          )
+    )
+
   def fromJson(json: JsObject)(implicit graph: Graph): Node =
     graph.nodeFactory(
       (

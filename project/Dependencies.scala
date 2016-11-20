@@ -10,7 +10,13 @@ object Dependencies {
 
   val playJson =
     Seq(
-      "com.typesafe.play" %% "play-json" % "2.5.9"
+      "com.typesafe.play" %% "play-json" % "2.5.10"
+    )
+
+  val playFramework =
+    Seq(
+      "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1" % Test,
+      "com.typesafe.play" %% "play-netty-server" % "2.5.10"
     )
 
   val typesafe =
