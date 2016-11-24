@@ -1,4 +1,4 @@
-val commonSettings =
+lazy val commonSettings =
   Seq(
     organization := "com.seancheatham",
     scalaVersion := "2.11.8",
@@ -33,15 +33,5 @@ lazy val graphNeo4jAdapter =
     .settings(
       name := "graph-neo4j-adapter",
       libraryDependencies ++= Dependencies.neo4j
-    )
-    .dependsOn(graphCore)
-
-lazy val playGraph =
-  project
-    .in(file("play"))
-    .settings(commonSettings: _*)
-    .settings(
-      name := "play-graph",
-      libraryDependencies ++= Dependencies.playFramework
     )
     .dependsOn(graphCore)
