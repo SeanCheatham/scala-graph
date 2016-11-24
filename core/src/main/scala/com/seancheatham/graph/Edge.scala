@@ -1,6 +1,8 @@
 package com.seancheatham.graph
 
-import play.api.libs.json.{JsObject, JsValue}
+import play.api.libs.json._
+
+import scala.util.Try
 
 /**
   * The core representation of an "Edge" between two [[com.seancheatham.graph.Node]]s.  If a Node is a
@@ -47,7 +49,7 @@ abstract class Edge {
     *
     * @return A NEW edge (with a different ID), with a potentially different edge.graph
     */
-  def create[E <: Edge] =
+  def create[E <: Edge]: E =
     graph.addEdge[E](this.label, _1, _2, this.data.withoutNulls)
 
   /**
@@ -55,7 +57,7 @@ abstract class Edge {
     *
     * @return A NEW, updated edge, with a potentially different edge.graph
     */
-  def update[E <: Edge] =
+  def update[E <: Edge]: E =
     graph.updateEdge[E](this.asInstanceOf[E])(this.data.toSeq: _*)
 
   /**
@@ -63,7 +65,7 @@ abstract class Edge {
     *
     * @return A new graph with this edge deleted
     */
-  def remove =
+  def remove: Graph =
     graph.removeEdge(this)
 
   /**
@@ -82,7 +84,7 @@ object Edge {
 
   type Factory = Construct => Graph => Edge
 
-  implicit final def defaultFactory(construct: Construct)(nGraph: Graph) =
+  implicit final def defaultFactory(construct: Construct)(nGraph: Graph): DefaultEdge =
     DefaultEdge(
       construct._1,
       construct._2,
@@ -119,9 +121,33 @@ object Edge {
     )(graph)
 
   implicit class NodeEdgeSyntax(node: Node) {
-    def -(label: String) =
+    def -(label: String): (Node, String) =
       node -> label
   }
+
+  implicit val writes: Writes[Edge] =
+    Writes[Edge](
+      node =>
+        Json.obj(
+          "id" -> node.id,
+          "label" -> node.label,
+          "data" -> node.data
+        )
+    )
+
+  implicit def reads(implicit graph: Graph): Reads[Construct] =
+    Reads[Construct](
+      json =>
+        JsSuccess(
+          (
+            (json \ "id").as[String],
+            (json \ "label").as[String],
+            graph.getNode[Node]((json \ "_1").as[String]).get,
+            graph.getNode[Node]((json \ "_2").as[String]).get,
+            (json \ "data").as[Map[String, JsValue]]
+          )
+        )
+    )
 
 }
 

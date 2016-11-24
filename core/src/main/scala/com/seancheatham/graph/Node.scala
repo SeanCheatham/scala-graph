@@ -1,6 +1,6 @@
 package com.seancheatham.graph
 
-import play.api.libs.json.{JsObject, JsValue}
+import play.api.libs.json._
 
 /**
   * A node represents a container of data.  Nodes can be classified or categorized by some label.
@@ -8,6 +8,7 @@ import play.api.libs.json.{JsObject, JsValue}
   * connected to other nodes in the form of [[com.seancheatham.graph.Edge]]s.
   */
 abstract class Node {
+
   import com.seancheatham.graph.utility.JsonTools.JsonMapHelper
 
   /**
@@ -32,6 +33,7 @@ abstract class Node {
 
   /**
     * Exports this Node as a [[com.seancheatham.graph.Node#Construct]]
+    *
     * @return a Node.NodeConstruct
     */
   def toConstruct: Node.Construct =
@@ -41,22 +43,22 @@ abstract class Node {
     * Fetches all incoming edges to this Node, with optional matches on label and data
     *
     * @param edgeLabel An optional edge label filter
-    * @param edgeData Key-value pairs which must be fulfilled
+    * @param edgeData  Key-value pairs which must be fulfilled
     * @return an Iterator of edges
     */
   def ingressEdges[E <: Edge](edgeLabel: Option[String] = None,
-                              edgeData: Map[String, JsValue] = Map.empty) =
+                              edgeData: Map[String, JsValue] = Map.empty): TraversableOnce[E] =
     graph.getIngressEdges[E](this, edgeLabel, edgeData)
 
   /**
     * Fetches all outgoing edges from this Node, with optional matches on label and data
     *
     * @param edgeLabel An optional edge label filter
-    * @param edgeData Key-value pairs which must be fulfilled
+    * @param edgeData  Key-value pairs which must be fulfilled
     * @return an Iterator of edges
     */
   def egressEdges[E <: Edge](edgeLabel: Option[String] = None,
-                             edgeData: Map[String, JsValue] = Map.empty) =
+                             edgeData: Map[String, JsValue] = Map.empty): TraversableOnce[E] =
     graph.getEgressEdges[E](this, edgeLabel, edgeData)
 
   /**
@@ -65,7 +67,7 @@ abstract class Node {
     *
     * @return A NEW node (with a different ID), with a potentially different node.graph
     */
-  def create[N <: Node] =
+  def create[N <: Node]: N =
     graph.addNode[N](this.label, this.data.withoutNulls)
 
   /**
@@ -73,21 +75,21 @@ abstract class Node {
     *
     * @return A NEW, updated node, with a potentially different node.graph
     */
-  def update[N <: Node] =
+  def update[N <: Node]: N =
     graph.updateNode[N](this.asInstanceOf[N])(this.data.toSeq: _*)
 
   /**
     * Creates an edge with the given label, to the given node, with the given data.  Inserts the edge into this.graph.
     *
     * @param label The edge's label
-    * @param _2 The destination node
-    * @param data The edge's data
+    * @param _2    The destination node
+    * @param data  The edge's data
     * @tparam E some type of Edge
     * @return A NEW edge.  The edge's graph may be different from this node's graph, so throw this node away.
     */
   def createEdgeTo[E <: Edge](label: String,
                               _2: Node,
-                              data: Map[String, JsValue] = Map.empty) =
+                              data: Map[String, JsValue] = Map.empty): E =
     graph.addEdge[E](label, this, _2, data)
 
   /**
@@ -95,7 +97,7 @@ abstract class Node {
     *
     * @return A new graph with this node deleted
     */
-  def remove =
+  def remove: Graph =
     graph.removeNode(this)
 
 }
@@ -106,10 +108,10 @@ object Node {
 
   type Factory = Construct => Graph => Node
 
-  implicit final def defaultFactory(construct: Construct)(nGraph: Graph) =
+  implicit final def defaultFactory(construct: Construct)(nGraph: Graph): DefaultNode =
     DefaultNode(construct._1, construct._2, construct._3)(nGraph)
 
-  implicit val writes =
+  implicit val writes: Writes[Node] =
     Writes[Node](
       node =>
         Json.obj(
@@ -119,14 +121,16 @@ object Node {
         )
     )
 
-  implicit def reads(implicit graph: Graph) =
-    Reads[Node](
+  implicit def reads(implicit graph: Graph): Reads[(String, String, Map[String, JsValue])] =
+    Reads[Construct](
       json =>
-        (
-          (json \ "id").as[String],
-          (json \ "label").as[String],
-          (json \ "data").as[Map[String, JsValue]]
+        JsSuccess(
+          (
+            (json \ "id").as[String],
+            (json \ "label").as[String],
+            (json \ "data").as[Map[String, JsValue]]
           )
+        )
     )
 
   def fromJson(json: JsObject)(implicit graph: Graph): Node =
@@ -135,7 +139,7 @@ object Node {
         (json \ "id").as[String],
         (json \ "label").as[String],
         (json \ "data").as[Map[String, JsValue]]
-        )
+      )
     )(graph)
 
 }

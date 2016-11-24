@@ -66,7 +66,7 @@ class MutableGraph(override implicit val nodeFactory: Node.Factory = Node.defaul
                           data: Map[String, JsValue]) =
     edges.valuesIterator
       .collect {
-        case e: E if label.fold(true)(_ == e.label) &&
+        case e: E@unchecked if label.fold(true)(_ == e.label) &&
           data
             .forall { case (key, value) => e.data(key) == value } =>
           e

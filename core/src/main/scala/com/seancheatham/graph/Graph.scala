@@ -13,7 +13,7 @@ abstract class Graph {
   /**
     * Implicit self-reference
     */
-  implicit def graph =
+  implicit def graph: Graph =
     this
 
   /**
@@ -196,32 +196,12 @@ abstract class Graph {
 
 object Graph {
 
-  implicit val writes =
+  implicit val writes: Writes[Graph] =
     Writes[Graph](
       graph =>
         Json.obj(
-          "nodes" ->
-            graph.getNodes[Node]()
-              .toSeq
-              .map(node =>
-                Json.obj(
-                  "id" -> node.id,
-                  "label" -> node.label,
-                  "data" -> node.data
-                )
-              ),
-          "edges" ->
-            graph.getEdges[Edge]()
-              .toSeq
-              .map(edge =>
-                Json.obj(
-                  "id" -> edge.id,
-                  "label" -> edge.label,
-                  "_1" -> edge._1.id,
-                  "_2" -> edge._2.id,
-                  "data" -> edge.data
-                )
-              )
+          "nodes" -> graph.getNodes[Node]().toSeq,
+          "edges" -> graph.getEdges[Edge]().toSeq
         )
     )
 
