@@ -113,7 +113,7 @@ val updatedEdge1 =
 ```
 
 ## Expose a Graph as an Akka-backed HTTP Server
-The graph-akka-layyer module allows you to expose a Graph through a REST API Server, backed by Akka.
+The graph-akka-layer module allows you to expose a Graph through a REST API Server, backed by Akka.
 
 ### From an existing Graph instance
 ```scala
