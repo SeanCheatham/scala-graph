@@ -10,17 +10,6 @@ import play.api.libs.json.{JsValue, Json}
   */
 object Router {
 
-  /**
-    * The documentation provided to the user at the base "/" path
-    */
-  final private val documentation: String =
-    """<h1>HTTP Graph Layer</h1>
-      |<h2>API Usage</h2>
-      |<h3>Routes</h3>
-      |<p></p>
-      |<h3>Models</h3>
-      |<p>...</p>
-    """.stripMargin
 
   /**
     * Generates a router with basic CRUD functionality for graph operations.
@@ -40,7 +29,7 @@ object Router {
 
     val base =
       pathSingleSlash(
-        complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, documentation))
+        complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, Documentation.html))
       )
 
     // Provides routing for reading/updating/deleting a specific node.
@@ -186,7 +175,7 @@ object Router {
         )
       )
 
-    // Routes to operate on edges filtered by _1 and _2
+    // Routes to create edges
     val edgeFilterRoutes =
       path("nodes" / Segment / "to" / Segment)((a, b) =>
         post(
