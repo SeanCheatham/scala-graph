@@ -29,4 +29,14 @@ object Dependencies {
       "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
     )
 
+  val akka =
+    Seq(
+      "com.typesafe.akka" %% "akka-actor" % "2.4.12"
+    )
+
+  val akkaHttp =
+    Seq(
+      "com.typesafe.akka" %% "akka-http" % "10.0.0"
+    )
+
 }

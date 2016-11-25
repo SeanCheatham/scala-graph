@@ -35,3 +35,18 @@ lazy val graphNeo4jAdapter =
       libraryDependencies ++= Dependencies.neo4j
     )
     .dependsOn(graphCore)
+
+lazy val akkaLayer =
+  project
+    .in(file("akka"))
+    .settings(commonSettings: _*)
+    .settings(
+      name := "graph-akka-layer",
+      resolvers += Resolver.bintrayRepo("hseeberger", "maven"),
+      libraryDependencies ++=
+        Dependencies.akka ++
+        Dependencies.akkaHttp :+
+        ("de.heikoseeberger" %% "akka-http-play-json" % "1.10.1")
+    )
+    // TODO: Adapter by dependency injection
+    .dependsOn(graphCore, memoryAdapter, graphNeo4jAdapter)
