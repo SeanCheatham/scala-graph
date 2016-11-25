@@ -111,3 +111,55 @@ val updatedNode1 =
 val updatedEdge1 =
     graph.updateEdge(edge1)("weight" -> Json.toJson(2.3))
 ```
+
+## Expose a Graph as an Akka-backed HTTP Server
+The graph-akka-layyer module allows you to expose a Graph through a REST API Server, backed by Akka.
+
+### From an existing Graph instances
+```scala
+import com.seancheatham.graph.akka.http.HttpServer
+val graph: Graph =
+    ???
+val server =
+    HttpServer(graph) // OR HttpServer(graph, "localhost", 8080)
+
+// Visit http://localhost:8080 for API paths and details
+
+...
+// Don't forget to shut it down
+server.shutdown()
+```
+
+### Run as an Application via main method
+Running the Application with no arguments will start a new mutable graph instance, bound to localhost:8080.
+
+You can run the server using command line arguments (run -help for info), but the preferred way is using Typesafe configurations.
+In your application.conf file:
+```
+graph {
+    http {
+        host = "localhost"
+        port = 8080
+    }
+    
+    type = "mutable" // OR: immutable, neo4j-embedded, neo4j-remote
+    
+    // If graph.type == "neo4j-embedded"
+    neo4j {
+        embedded {
+            dir = "/tmp/neo4jembedded"
+        }
+    }
+    
+    // If graph.type == "neo4j-remote"
+    neo4j {
+        remote {
+            address = "bolt://127.0.0.1"
+            user = "neo4j"
+            password = "neo4j"
+        }
+    }
+}
+```
+
+Once configured, just run the graph-akka-layer's "main()" method.

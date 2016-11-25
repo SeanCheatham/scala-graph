@@ -237,6 +237,11 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
         graph.getNode[Node](barNode.id).isEmpty === true
       }
     }
+
+    "Shut down" in {
+      server.shutdown()
+      assert(true)
+    }
   }
 
 }
