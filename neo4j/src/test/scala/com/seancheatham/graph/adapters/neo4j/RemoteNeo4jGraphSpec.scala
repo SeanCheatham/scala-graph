@@ -4,7 +4,7 @@ import com.typesafe.config.ConfigFactory
 import fixtures.GraphTest
 import org.neo4j.driver.v1.AuthTokens
 
-class RemoteNeo4jGraphSpec extends GraphTest({
+class RemoteNeo4jGraphSpec extends GraphTest {
   val config =
     ConfigFactory.load()
   val address =
@@ -14,5 +14,5 @@ class RemoteNeo4jGraphSpec extends GraphTest({
       config.getString("neo4j.auth.user"),
       config.getString("neo4j.auth.password")
     )
-  Neo4jGraph.remote(address, token)
-})
+  val graph = Neo4jGraph.remote(address, token)
+}

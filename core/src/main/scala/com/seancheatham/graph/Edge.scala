@@ -93,6 +93,9 @@ object Edge {
       construct._5
     )(nGraph)
 
+  def fromJson(json: JsObject)(implicit graph: Graph): Edge =
+    fromJson(json, graph.getNode[Node] _, graph.getNode[Node] _)
+
   def fromJson(json: JsObject,
                _1: Node,
                _2: Node)(implicit graph: Graph): Edge =

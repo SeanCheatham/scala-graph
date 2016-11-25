@@ -50,3 +50,14 @@ lazy val akkaLayer =
     )
     // TODO: Adapter by dependency injection
     .dependsOn(graphCore, memoryAdapter, graphNeo4jAdapter)
+
+lazy val akkaAdapter =
+  project
+    .in(file("akkaAdapter"))
+    .settings(commonSettings: _*)
+    .settings(
+      name := "graph-akka-adapter",
+      libraryDependencies ++=
+        Dependencies.playWS
+    )
+    .dependsOn(graphCore, akkaLayer)

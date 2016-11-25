@@ -4,7 +4,9 @@ import com.seancheatham.graph.{DefaultNode, Edge, Graph, Node}
 import org.scalatest.WordSpec
 import play.api.libs.json._
 
-abstract class GraphTest(graph: Graph) extends WordSpec {
+abstract class GraphTest extends WordSpec {
+
+  val graph: Graph
 
   lazy val node1 =
     graph.addNode[Node]("TEST", Map("name" -> JsString("Foo")))

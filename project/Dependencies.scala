@@ -2,6 +2,10 @@ import sbt._
 
 object Dependencies {
 
+  object versions {
+    val play = "2.5.10"
+  }
+
   val neo4j =
     Seq(
       "org.neo4j.driver" % "neo4j-java-driver" % "1.0.6",
@@ -10,7 +14,12 @@ object Dependencies {
 
   val playJson =
     Seq(
-      "com.typesafe.play" %% "play-json" % "2.5.10"
+      "com.typesafe.play" %% "play-json" % versions.play
+    )
+
+  val playWS =
+    Seq(
+      "com.typesafe.play" %% "play-ws" % versions.play
     )
 
   val typesafe =
