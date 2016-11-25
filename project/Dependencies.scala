@@ -34,9 +34,12 @@ object Dependencies {
       "com.typesafe.akka" %% "akka-actor" % "2.4.12"
     )
 
-  val akkaHttp =
+  val akkaHttp = {
+    val version = "10.0.0"
     Seq(
-      "com.typesafe.akka" %% "akka-http" % "10.0.0"
+      "com.typesafe.akka" %% "akka-http" % version,
+      "com.typesafe.akka" %% "akka-http-testkit" % version
     )
+  }
 
 }

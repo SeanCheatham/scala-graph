@@ -127,11 +127,13 @@ object Edge {
 
   implicit val writes: Writes[Edge] =
     Writes[Edge](
-      node =>
+      edge =>
         Json.obj(
-          "id" -> node.id,
-          "label" -> node.label,
-          "data" -> node.data
+          "id" -> edge.id,
+          "label" -> edge.label,
+          "_1" -> edge._1.id,
+          "_2" -> edge._2.id,
+          "data" -> edge.data
         )
     )
 

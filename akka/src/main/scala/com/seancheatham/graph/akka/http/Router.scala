@@ -10,17 +10,6 @@ import play.api.libs.json.{JsValue, Json}
   */
 object Router {
 
-  /**
-    * The documentation provided to the user at the base "/" path
-    */
-  final private val documentation: String =
-    """<h1>HTTP Graph Layer</h1>
-      |<h2>API Usage</h2>
-      |<h3>Routes</h3>
-      |<p></p>
-      |<h3>Models</h3>
-      |<p>...</p>
-    """.stripMargin
 
   /**
     * Generates a router with basic CRUD functionality for graph operations.
@@ -33,14 +22,14 @@ object Router {
     import StatusCodes._
     import akka.http.scaladsl.model.HttpEntity
     import akka.http.scaladsl.server.Directives._
-    import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport.playJsonMarshaller
+    import de.heikoseeberger.akkahttpplayjson.PlayJsonSupport._
 
     // Keep a variable graph reference; this will be updated every time a mutating request is made
     var g = graph
 
     val base =
       pathSingleSlash(
-        complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, documentation))
+        complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, Documentation.html))
       )
 
     // Provides routing for reading/updating/deleting a specific node.
@@ -54,7 +43,7 @@ object Router {
         get(complete(Json.toJson(node))) ~
           // Update a node
           put(
-            optionalEntity(as[Map[String, JsValue]]) {
+            entity(as[Option[Map[String, JsValue]]]) {
               data =>
                 val updatedNode = g.updateNode(node)((data getOrElse Map.empty).toSeq: _*)
                 g = updatedNode.graph
@@ -74,8 +63,8 @@ object Router {
           val maybeNode = g.getNode[Node](id)
           // If the node couldn't be found, 404
           maybeNode.fold[Route](complete(NotFound))(node =>
-            parameter("label", 'label.?) { (_, label) =>
-              optionalEntity(as[Map[String, JsValue]]) {
+            parameter("label".?) { label =>
+              entity(as[Option[Map[String, JsValue]]]) {
                 data =>
                   val d =
                     data getOrElse Map.empty
@@ -91,8 +80,8 @@ object Router {
           path("nodes" / Segment / "edges" / "egress") { id =>
             val maybeNode = g.getNode[Node](id)
             maybeNode.fold[Route](complete(NotFound))(node =>
-              parameter("label", 'label.?) { (_, label) =>
-                optionalEntity(as[Map[String, JsValue]]) {
+              parameter("label".?) { label =>
+                entity(as[Option[Map[String, JsValue]]]) {
                   data =>
                     val edges =
                       g.getEgressEdges[Edge](node, label, data getOrElse Map.empty).toIterator
@@ -105,8 +94,8 @@ object Router {
           path("nodes" / Segment / "edges" / "ingress") { id =>
             val maybeNode = g.getNode[Node](id)
             maybeNode.fold[Route](complete(NotFound))(node =>
-              parameter("label", 'label.?) { (_, label) =>
-                optionalEntity(as[Map[String, JsValue]]) {
+              parameter("label".?) { label =>
+                entity(as[Option[Map[String, JsValue]]]) {
                   data =>
                     val edges =
                       g.getIngressEdges[Edge](node, label, data getOrElse Map.empty).toIterator
@@ -123,10 +112,10 @@ object Router {
         // Get all nodes by label? and data?
         get(
           parameter("label".?)(label =>
-            optionalEntity(as[Map[String, JsValue]]) {
+            entity(as[Option[Map[String, JsValue]]]) {
               data =>
                 val nodes =
-                  g.getNodes[Node](label, data getOrElse Map.empty)
+                  g.getNodes[Node](label, data getOrElse Map.empty).toIterator
                 complete(nodes.map(Json.toJson(_)))
             }
           )
@@ -134,7 +123,7 @@ object Router {
           // Create a new node
           post(
             parameter("label")(label =>
-              optionalEntity(as[Map[String, JsValue]]) {
+              entity(as[Option[Map[String, JsValue]]]) {
                 data =>
                   val node =
                     g.addNode[Node](label, data getOrElse Map.empty)
@@ -155,7 +144,7 @@ object Router {
           get(complete(Json.toJson(edge))) ~
             // Update an edge
             put(
-              optionalEntity(as[Map[String, JsValue]]) {
+              entity(as[Option[Map[String, JsValue]]]) {
                 data =>
                   val updatedEdge = g.updateEdge(edge)((data getOrElse Map.empty).toSeq: _*)
                   g = updatedEdge.graph
@@ -176,31 +165,31 @@ object Router {
         // Get all edges by label and data
         get(
           parameter("label".?)(label =>
-            optionalEntity(as[Map[String, JsValue]]) {
+            entity(as[Option[Map[String, JsValue]]]) {
               data =>
                 val edges =
-                  g.getEdges[Edge](label, data getOrElse Map.empty)
+                  g.getEdges[Edge](label, data getOrElse Map.empty).toIterator
                 complete(edges.map(Json.toJson(_)))
             }
           )
         )
       )
 
-    // Routes to operate on edges filtered by _1 and _2
+    // Routes to create edges
     val edgeFilterRoutes =
       path("nodes" / Segment / "to" / Segment)((a, b) =>
         post(
           parameter("label")(label =>
-            optionalEntity(as[Map[String, JsValue]]) {
+            entity(as[Option[Map[String, JsValue]]]) {
               data =>
                 val node1 =
                   g.getNode[Node](a)
                 val node2 =
                   g.getNode[Node](b)
 
-                if(node1.isEmpty)
+                if (node1.isEmpty)
                   complete(NotFound)
-                else if(node2.isEmpty)
+                else if (node2.isEmpty)
                   complete(NotFound)
                 else {
                   val edge = g.addEdge[Edge](label, node1.get, node2.get, data getOrElse Map.empty)
