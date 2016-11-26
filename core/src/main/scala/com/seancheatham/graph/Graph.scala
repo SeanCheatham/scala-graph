@@ -46,8 +46,7 @@ abstract class Graph {
     * .addEdge(a -"KNOWS"-> b)
     *
     * @see [[com.seancheatham.graph.Edge.NodeEdgeSyntax]]
-    *
-    * @param e A tuple in the form of ((_1, label), _2)
+    * @param e    A tuple in the form of ((_1, label), _2)
     * @param data The edge's meta-data
     * @return a Graph with this edge added
     */
@@ -88,6 +87,36 @@ abstract class Graph {
               end: Node,
               nodeLabels: Seq[String] = Seq.empty,
               edgeLabels: Seq[String] = Seq.empty): TraversableOnce[Path]
+
+  /**
+    * Insert all of the nodes and edges from the other graph into this one, returning a new combined graph
+    *
+    * Since ID schemes vary depending on the storage system, all IDs have to be re-generated.  The IDs will
+    * be mapped over, however doing so is handled in-memory.  As a result, excessively large
+    * graphs (with long ID keys) may max out memory on lighter systems.
+    *
+    * @param other The other graph to merge into this one
+    * @return a new Graph, with all of the nodes and edges from the other graph merged in
+    */
+  def ++(other: Graph): Graph = {
+    val (g1, nodeIdMapping) =
+      other.getNodes[Node]()
+        .foldLeft((this, Map.empty[String, String])) {
+          case ((g2, mapping), node) =>
+            val newNode =
+              g2.addNode[Node](node.label, node.data)
+            (newNode.graph, mapping + (node.id -> newNode.id))
+        }
+    other.getEdges[Edge]()
+      .foldLeft(g1) {
+        case (g2, edge) =>
+          val _1 =
+            g2.getNode[Node](nodeIdMapping(edge._1.id)).get
+          val _2 =
+            g2.getNode[Node](nodeIdMapping(edge._2.id)).get
+          g2.addEdge[Edge](edge.label, _1, _2, edge.data).graph
+      }
+  }
 
 }
 

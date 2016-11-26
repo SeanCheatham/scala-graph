@@ -1,20 +1,22 @@
 package com.seancheatham.graph.adapters.akka
 
-import java.io.{CharArrayReader, InputStream}
+import java.io.InputStream
 
 import akka.actor.{ActorSystem, Terminated}
 import akka.stream.ActorMaterializer
-import com.fasterxml.jackson.core.{JsonFactory, JsonToken}
+import com.fasterxml.jackson.core.JsonFactory
 import com.seancheatham.graph.{Edge, Graph, Node, Path}
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.libs.ws.StreamedResponse
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 case class RemoteHttpGraph(address: String,
-                           port: Int) extends Graph with LazyLogging {
+                           port: Int)
+                          (override implicit val nodeFactory: Node.Factory = Node.defaultFactory,
+                           override implicit val edgeFactory: Edge.Factory = Edge.defaultFactory) extends Graph with LazyLogging {
 
   val baseUri =
     s"http://$address:$port"
@@ -27,19 +29,23 @@ case class RemoteHttpGraph(address: String,
   implicit private val materializer =
     ActorMaterializer()
 
-  implicit val executionContext =
+  implicit val executionContext: ExecutionContextExecutor =
     actorSystem.dispatcher
 
   private val client =
     AhcWSClient()
 
-  private def path(p: String) =
-    client.url(baseUri + p)
-
   def shutdown(): Future[Terminated] = {
     client.close()
     actorSystem.terminate()
   }
+
+  def addNode[N <: Node](label: String, data: Map[String, JsValue]): N =
+    path(s"/nodes")
+      .withQueryString("label" -> label)
+      .post(JsObject(data))
+      .map(r => Node.fromJson(r.json.as[JsObject]).asInstanceOf[N])
+      .awaitForever
 
   private implicit class Awaiter[T](future: Future[T]) {
     def awaitForever: T =
@@ -60,28 +66,6 @@ case class RemoteHttpGraph(address: String,
       }
   }
 
-  private def streamToIterator(res: StreamedResponse): Future[Iterator[JsValue]] = {
-    val f = new JsonFactory()
-    res.body.runFold(Iterator[Char]()) {
-      case (acc, str) =>
-        acc ++ str.utf8String.toIterator
-    } map { charIterator =>
-      val r = new InputStream {
-        def read() =
-          if (charIterator.hasNext) charIterator.next() else -1
-      }
-      // TODO: Do actual JSON stream parsing
-      Json.parse(r).as[Seq[JsValue]].toIterator
-    }
-  }
-
-  def addNode[N <: Node](label: String, data: Map[String, JsValue]): N =
-    path(s"/nodes")
-      .withQueryString("label" -> label)
-      .post(JsObject(data))
-      .map(r => Node.fromJson(r.json.as[JsObject]).asInstanceOf[N])
-      .awaitForever
-
   def addEdge[E <: Edge](label: String, _1: Node, _2: Node, data: Map[String, JsValue]): E =
     path(s"/nodes/${_1.id}/to/${_2.id}")
       .withQueryString("label" -> label)
@@ -89,10 +73,13 @@ case class RemoteHttpGraph(address: String,
       .map(r => Edge.fromJson(r.json.as[JsObject], _1, _2).asInstanceOf[E])
       .awaitForever
 
+  private def path(p: String) =
+    client.url(baseUri + p)
+
   def getNode[N <: Node](id: String): Option[N] =
     path(s"/nodes/$id")
       .get()
-      .map{
+      .map {
         case r if r.status == 200 =>
           Some(Node.fromJson(r.json.as[JsObject]).asInstanceOf[N])
         case r =>
@@ -100,25 +87,22 @@ case class RemoteHttpGraph(address: String,
       }
       .awaitForever
 
-  def getNodes[N <: Node](label: Option[String], data: Map[String, JsValue]): TraversableOnce[N] =
-    label.fold(path("/nodes"))(l => path("/nodes").withQueryString("label" -> l))
-      .withBody(JsObject(data))
-      .withMethod("GET")
-      .stream()
-      .flatMap(streamToIterator)
-      .map(_ map (j => Node.fromJson(j.as[JsObject]).asInstanceOf[N]))
-      .awaitForever
-
   def getEdge[E <: Edge](id: String): Option[E] =
     path(s"/edges/$id")
       .get()
-      .map{
+      .map {
         case r if r.status == 200 =>
           Some(Edge.fromJson(r.json.as[JsObject]).asInstanceOf[E])
         case r =>
           None
       }
       .awaitForever
+
+  def getEdges[E <: Edge](label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
+    getEdges[E]("/edges", label, data)
+
+  def getEgressEdges[E <: Edge](node: Node, label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
+    getEdges[E](s"/nodes/${node.id}/edges/egress", label, data)
 
   private def getEdges[E <: Edge](p: String,
                                   label: Option[String],
@@ -131,11 +115,20 @@ case class RemoteHttpGraph(address: String,
       .map(_ map (j => Edge.fromJson(j.as[JsObject]).asInstanceOf[E]))
       .toIterator
 
-  def getEdges[E <: Edge](label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
-    getEdges[E]("/edges", label, data)
-
-  def getEgressEdges[E <: Edge](node: Node, label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
-    getEdges[E](s"/nodes/${node.id}/edges/egress", label, data)
+  private def streamToIterator(res: StreamedResponse): Future[Iterator[JsValue]] = {
+    val f = new JsonFactory()
+    res.body.runFold(Iterator[Char]()) {
+      case (acc, str) =>
+        acc ++ str.utf8String.toIterator
+    } map { charIterator =>
+      val r = new InputStream {
+        def read(): Int =
+          if (charIterator.hasNext) charIterator.next() else -1
+      }
+      // TODO: Do actual JSON stream parsing
+      Json.parse(r).as[Seq[JsValue]].toIterator
+    }
+  }
 
   def getIngressEdges[E <: Edge](node: Node, label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
     getEdges[E](s"/nodes/${node.id}/edges/ingress", label, data)
@@ -159,6 +152,15 @@ case class RemoteHttpGraph(address: String,
     )
     this
   }
+
+  def getNodes[N <: Node](label: Option[String], data: Map[String, JsValue]): TraversableOnce[N] =
+    label.fold(path("/nodes"))(l => path("/nodes").withQueryString("label" -> l))
+      .withBody(JsObject(data))
+      .withMethod("GET")
+      .stream()
+      .flatMap(streamToIterator)
+      .map(_ map (j => Node.fromJson(j.as[JsObject]).asInstanceOf[N]))
+      .awaitForever
 
   def removeEdge(edge: Edge): Graph = {
     path(s"/edges/${edge.id}")
