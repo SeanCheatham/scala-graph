@@ -9,6 +9,12 @@ jdk:
 services:
   - docker
 
-beforeInstall:
+before_install:
   - docker pull neo4j
   - docker run -d --env=NEO4J_AUTH=none
+
+after_success:
+  - docker stop $(docker ps -a -q)
+
+after_failure:
+  - docker stop $(docker ps -a -q)
