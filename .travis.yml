@@ -11,7 +11,7 @@ services:
 
 before_install:
   - docker pull neo4j
-  - docker run neo4j:2.3 -d --env=NEO4J_AUTH=none
+  - docker run -d neo4j:2.3 --env=NEO4J_AUTH=none
 
 after_success:
   - docker stop $(docker ps -a -q)
