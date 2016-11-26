@@ -10,5 +10,5 @@ services:
   - docker
 
 beforeInstall:
-  docker pull neo4j
-  docker run -d --env=NEO4J_AUTH=none
+  - docker pull neo4j
+  - docker run -d --env=NEO4J_AUTH=none
