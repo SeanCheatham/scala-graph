@@ -24,7 +24,7 @@ lazy val memoryAdapter =
     .settings(
       name := "graph-memory-adapter"
     )
-    .dependsOn(graphCore)
+    .dependsOn(graphCore % "compile->compile;test->test")
 
 lazy val graphNeo4jAdapter =
   project
@@ -34,7 +34,7 @@ lazy val graphNeo4jAdapter =
       name := "graph-neo4j-adapter",
       libraryDependencies ++= Dependencies.neo4j
     )
-    .dependsOn(graphCore)
+    .dependsOn(graphCore % "compile->compile;test->test")
 
 lazy val akkaLayer =
   project
@@ -60,4 +60,8 @@ lazy val akkaAdapter =
       libraryDependencies ++=
         Dependencies.playWS
     )
-    .dependsOn(graphCore)
+    .dependsOn(
+      graphCore % "compile->compile;test->test",
+      memoryAdapter % "test->test",
+      akkaLayer % "test->test"
+    )

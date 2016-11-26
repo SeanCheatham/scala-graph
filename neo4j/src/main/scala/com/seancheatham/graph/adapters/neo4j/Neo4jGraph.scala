@@ -534,6 +534,9 @@ class EmbeddedNeo4jGraph(private val service: GraphDatabaseService)
 
   import Neo4jGraph._
 
+  def shutdown(): Unit =
+    service.shutdown()
+
   protected def runInTransaction[T](actions: => T) =
     Try(service.beginTx())
       .map { t =>

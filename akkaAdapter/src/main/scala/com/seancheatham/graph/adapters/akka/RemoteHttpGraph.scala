@@ -142,14 +142,13 @@ case class RemoteHttpGraph(address: String,
   }
 
   def removeNodes(label: Option[String], data: Map[String, JsValue]): Graph = {
-    Future.sequence(
       getNodes[Node](label, data)
         .map(node =>
           path(s"/nodes/${node.id}")
             .delete()
             .map(r => if (r.status != 204) logger.warn(s"Node ${node.id} could not be found"))
         )
-    )
+      .foreach { _.awaitForever }
     this
   }
 

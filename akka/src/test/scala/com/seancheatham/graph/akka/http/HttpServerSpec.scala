@@ -15,7 +15,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
     new MutableGraph
 
   val server =
-    HttpServer(graph)
+    HttpServer(graph, port = 12319)
 
   val defaultLabel =
     "test"
@@ -42,7 +42,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
       Get(s"/nodes") ~>
         server.routes ~> check {
         val nodes =
-          entityAs[Iterator[JsValue]].toVector
+          entityAs[JsArray].value
             .map(_.as[JsObject])
             .map(Node.fromJson)
 
@@ -142,7 +142,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
       Get(s"/nodes/${barNode.id}/edges") ~>
         server.routes ~> check {
         val edges =
-          entityAs[Iterator[JsValue]].toVector
+          entityAs[JsArray].value
             .map(_.as[JsObject])
             .map(Edge.fromJson)
 
@@ -165,7 +165,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
       Get(s"/nodes/${barNode.id}/edges/ingress") ~>
         server.routes ~> check {
         val edges =
-          entityAs[Iterator[JsValue]].toVector
+          entityAs[JsArray].value
             .map(_.as[JsObject])
             .map(Edge.fromJson)
 
@@ -188,7 +188,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
       Get(s"/nodes/${barNode.id}/edges/egress") ~>
         server.routes ~> check {
         val edges =
-          entityAs[Iterator[JsValue]].toVector
+          entityAs[JsArray].value
             .map(_.as[JsObject])
             .map(Edge.fromJson)
 
