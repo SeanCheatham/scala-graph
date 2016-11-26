@@ -1,10 +1,27 @@
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.ivy2
+    - $HOME/.sbt
+
 language: scala
 
 scala:
   - 2.11.8
 
-jdk:
-  - oraclejdk8
+matrix:
+  include:
+    - scala: 2.10.6
+      jdk: oraclejdk7
+    - scala: 2.11.8
+      jdk: oraclejdk7
+    - scala: 2.10.6
+      jdk: oraclejdk8
+    - scala: 2.11.8
+      jdk: oraclejdk8
+    - scala: 2.12.0
+      jdk: oraclejdk8
 
 services:
   - docker
@@ -16,5 +33,23 @@ before_install:
 after_success:
   - docker stop $(docker ps -a -q)
 
+## Implement when deployment is ready
+#  - >
+#    test "${TRAVIS_PULL_REQUEST}" = 'false' && test "${TRAVIS_JDK_VERSION}" = 'oraclejdk7' -o "${TRAVIS_SCALA_VERSION}" = '2.12.0-M5' &&
+#    sbt 'set resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"'
+#    'set credentials += Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", System.getenv("SONATYPE_USER"), System.getenv("SONATYPE_PASS"))'
+#    ++${TRAVIS_SCALA_VERSION}
+#    publish
+
 after_failure:
   - docker stop $(docker ps -a -q)
+
+branches:
+  only:
+    - master
+
+## Implement when deployment is ready
+#env:
+#  global:
+#    - secure: ""
+#    - secure: ""
