@@ -1,5 +1,14 @@
 language: scala
+
 scala:
-   - 2.11.8
+  - 2.11.8
+
 jdk:
-   - oraclejdk8
+  - oraclejdk8
+
+services:
+  - docker
+
+beforeInstall:
+  docker pull neo4j
+  docker run -d --env=NEO4J_AUTH=none

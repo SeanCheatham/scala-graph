@@ -4,15 +4,26 @@ import com.typesafe.config.ConfigFactory
 import fixtures.GraphTest
 import org.neo4j.driver.v1.AuthTokens
 
+import scala.util.Try
+
 class RemoteNeo4jGraphSpec extends GraphTest {
-  val config =
+  private val config =
     ConfigFactory.load()
-  val address =
-    config.getString("neo4j.address")
-  val token =
-    AuthTokens.basic(
-      config.getString("neo4j.auth.user"),
-      config.getString("neo4j.auth.password")
-    )
-  val graph = Neo4jGraph.remote(address, token)
+
+  private val address =
+    Try(config.getString("neo4j.address"))
+      .getOrElse("bolt://localhost")
+
+  private val token =
+    Try(config.getString("neo4j.auth.user"))
+      .map(user =>
+        AuthTokens.basic(
+          user,
+          config.getString("neo4j.auth.password")
+        )
+      )
+      .toOption
+
+  val graph: RemoteNeo4jGraph =
+    token.fold(Neo4jGraph.remote(address))(Neo4jGraph.remote(address, _))
 }
