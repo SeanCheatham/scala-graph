@@ -24,23 +24,23 @@ object Dependencies {
 
   val typesafe =
     Seq(
-      "com.typesafe" % "config" % "1.3.0"
+      "com.typesafe" % "config" % "1.3.1"
     )
 
   val test =
     Seq(
-      "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test"
+      "org.scalatest" %% "scalatest" % "3.0.1" % "test"
     )
 
   val logging =
     Seq(
       "ch.qos.logback" % "logback-classic" % "1.1.7",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0"
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.5.0"
     )
 
   val akka =
     Seq(
-      "com.typesafe.akka" %% "akka-actor" % "2.4.12"
+      "com.typesafe.akka" %% "akka-actor" % "2.4.14"
     )
 
   val akkaHttp = {
