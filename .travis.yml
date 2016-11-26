@@ -1,11 +1,16 @@
 sudo: false
 
+dist: trusty
+
 cache:
   directories:
     - $HOME/.ivy2
     - $HOME/.sbt
 
 language: scala
+
+services:
+  - docker
 
 matrix:
   include:
@@ -20,8 +25,6 @@ matrix:
     - scala: 2.12.0
       jdk: oraclejdk8
 
-services:
-  - docker
 
 before_install:
   - docker pull neo4j
