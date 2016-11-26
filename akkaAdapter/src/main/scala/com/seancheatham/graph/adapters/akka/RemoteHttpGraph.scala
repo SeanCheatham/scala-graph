@@ -4,7 +4,6 @@ import java.io.InputStream
 
 import akka.actor.{ActorSystem, Terminated}
 import akka.stream.ActorMaterializer
-import com.fasterxml.jackson.core.JsonFactory
 import com.seancheatham.graph.{Edge, Graph, Node, Path}
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.{JsObject, JsValue, Json}
@@ -22,11 +21,12 @@ case class RemoteHttpGraph(address: String,
     s"http://$address:$port"
 
   import play.api.libs.ws.ahc.AhcWSClient
+  import RemoteHttpGraph._
 
-  implicit private val actorSystem =
+  implicit val actorSystem: ActorSystem =
     ActorSystem()
 
-  implicit private val materializer =
+  implicit val materializer: ActorMaterializer =
     ActorMaterializer()
 
   implicit val executionContext: ExecutionContextExecutor =
@@ -47,25 +47,6 @@ case class RemoteHttpGraph(address: String,
       .map(r => Node.fromJson(r.json.as[JsObject]).asInstanceOf[N])
       .awaitForever
 
-  private implicit class Awaiter[T](future: Future[T]) {
-    def awaitForever: T =
-      Await.result(future, Duration.Inf)
-  }
-
-  private implicit class FutureHelper[T](future: Future[Iterator[T]]) {
-    def toIterator =
-      new Iterator[T] {
-        private val result =
-          future.awaitForever
-
-        def next(): T =
-          result.next()
-
-        def hasNext: Boolean =
-          result.hasNext
-      }
-  }
-
   def addEdge[E <: Edge](label: String, _1: Node, _2: Node, data: Map[String, JsValue]): E =
     path(s"/nodes/${_1.id}/to/${_2.id}")
       .withQueryString("label" -> label)
@@ -73,16 +54,13 @@ case class RemoteHttpGraph(address: String,
       .map(r => Edge.fromJson(r.json.as[JsObject], _1, _2).asInstanceOf[E])
       .awaitForever
 
-  private def path(p: String) =
-    client.url(baseUri + p)
-
   def getNode[N <: Node](id: String): Option[N] =
     path(s"/nodes/$id")
       .get()
       .map {
         case r if r.status == 200 =>
           Some(Node.fromJson(r.json.as[JsObject]).asInstanceOf[N])
-        case r =>
+        case _ =>
           None
       }
       .awaitForever
@@ -93,16 +71,13 @@ case class RemoteHttpGraph(address: String,
       .map {
         case r if r.status == 200 =>
           Some(Edge.fromJson(r.json.as[JsObject]).asInstanceOf[E])
-        case r =>
+        case _ =>
           None
       }
       .awaitForever
 
   def getEdges[E <: Edge](label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
     getEdges[E]("/edges", label, data)
-
-  def getEgressEdges[E <: Edge](node: Node, label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
-    getEdges[E](s"/nodes/${node.id}/edges/egress", label, data)
 
   private def getEdges[E <: Edge](p: String,
                                   label: Option[String],
@@ -115,20 +90,11 @@ case class RemoteHttpGraph(address: String,
       .map(_ map (j => Edge.fromJson(j.as[JsObject]).asInstanceOf[E]))
       .toIterator
 
-  private def streamToIterator(res: StreamedResponse): Future[Iterator[JsValue]] = {
-    val f = new JsonFactory()
-    res.body.runFold(Iterator[Char]()) {
-      case (acc, str) =>
-        acc ++ str.utf8String.toIterator
-    } map { charIterator =>
-      val r = new InputStream {
-        def read(): Int =
-          if (charIterator.hasNext) charIterator.next() else -1
-      }
-      // TODO: Do actual JSON stream parsing
-      Json.parse(r).as[Seq[JsValue]].toIterator
-    }
-  }
+  private def path(p: String) =
+    client.url(baseUri + p)
+
+  def getEgressEdges[E <: Edge](node: Node, label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
+    getEdges[E](s"/nodes/${node.id}/edges/egress", label, data)
 
   def getIngressEdges[E <: Edge](node: Node, label: Option[String], data: Map[String, JsValue]): TraversableOnce[E] =
     getEdges[E](s"/nodes/${node.id}/edges/ingress", label, data)
@@ -142,13 +108,15 @@ case class RemoteHttpGraph(address: String,
   }
 
   def removeNodes(label: Option[String], data: Map[String, JsValue]): Graph = {
-      getNodes[Node](label, data)
-        .map(node =>
-          path(s"/nodes/${node.id}")
-            .delete()
-            .map(r => if (r.status != 204) logger.warn(s"Node ${node.id} could not be found"))
-        )
-      .foreach { _.awaitForever }
+    getNodes[Node](label, data)
+      .map(node =>
+        path(s"/nodes/${node.id}")
+          .delete()
+          .map(r => if (r.status != 204) logger.warn(s"Node ${node.id} could not be found"))
+      )
+      .foreach {
+        _.awaitForever
+      }
     this
   }
 
@@ -184,4 +152,48 @@ case class RemoteHttpGraph(address: String,
   def pathsTo(start: Node, end: Node, nodeLabels: Seq[String], edgeLabels: Seq[String]): TraversableOnce[Path] =
     Path.bfs(start, end, nodeLabels, edgeLabels)
 
+}
+
+object RemoteHttpGraph {
+
+
+  private implicit class Awaiter[T](future: Future[T]) {
+    def awaitForever: T =
+      Await.result(future, Duration.Inf)
+  }
+
+  private implicit class FutureHelper[T](future: Future[Iterator[T]]) {
+    /**
+      * Produces a pseudo-lazy iterator out of this future.  It is considered pseudo-lazy because it won't block until
+      * the iterator's #next() is first called.
+      *
+      * @return an Iterator of T
+      */
+    def toIterator: Iterator[T] =
+      new Iterator[T] {
+        private lazy val result =
+          future.awaitForever
+
+        def next(): T =
+          result.next()
+
+        def hasNext: Boolean =
+          result.hasNext
+      }
+  }
+
+  import akka.stream.Materializer
+  import scala.concurrent.ExecutionContext
+  private def streamToIterator(res: StreamedResponse)
+                              (implicit materializer: Materializer,
+                               executionContext: ExecutionContext): Future[Iterator[JsValue]] =
+    res.body.runFold(Iterator[Char]())(_ ++ _.utf8String.toIterator)
+      .map { charIterator =>
+        val r = new InputStream {
+          def read(): Int =
+            if (charIterator.hasNext) charIterator.next() else -1
+        }
+        // TODO: Do actual JSON stream parsing
+        Json.parse(r).as[Seq[JsValue]].toIterator
+      }
 }
