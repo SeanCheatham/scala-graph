@@ -6,7 +6,6 @@ import com.seancheatham.graph.Graph
 import com.seancheatham.graph.adapters.memory.{ImmutableGraph, MutableGraph}
 import com.seancheatham.graph.adapters.neo4j.Neo4jGraph
 import com.typesafe.config.ConfigFactory
-import org.neo4j.driver.v1.{AuthToken, AuthTokens}
 
 import scala.io.StdIn
 import scala.util.{Failure, Success, Try}
@@ -18,7 +17,7 @@ import scala.util.{Failure, Success, Try}
   *
   * For instructions, please see the documentation by running this application with the "-help" parameter
   */
-object Application {
+object Application extends App {
 
   /**
     * The default binding address for the server
@@ -44,27 +43,24 @@ object Application {
   /**
     * Either prints documentation, or initializes a new server and lets it
     * run until the user presses any key in the console
-    *
-    * @param args The arguments for the application (see the documentation)
     */
-  def main(args: Array[String]): Unit =
-    if (args contains "-help")
-      printDocumentation()
-    else
-      createServer(args) match {
-        case Success(server) =>
+  if (args contains "-help")
+    printDocumentation()
+  else
+    createServer(args) match {
+      case Success(server) =>
 
-          println("Press RETURN to stop...")
+        println("Press RETURN to stop...")
 
-          // Run the server until there is console input
-          StdIn.readLine()
+        // Run the server until there is console input
+        StdIn.readLine()
 
-          server.shutdown()
-        case Failure(e: IllegalArgumentException) =>
-          println(s"Invalid argument provided: ${e.toString}")
-        case Failure(e) =>
-          throw e
-      }
+        server.shutdown()
+      case Failure(e: IllegalArgumentException) =>
+        println(s"Invalid argument provided: ${e.toString}")
+      case Failure(e) =>
+        throw e
+    }
 
   /**
     * Construct a server from the given arguments
@@ -154,12 +150,12 @@ object Application {
               case -1 =>
                 Try(config.getString("graph.neo4j.auth.user"))
                   .toOption
-                  .fold[Option[AuthToken]](
+                  .fold[Option[(String, String)]](
                   None
                 ) { user =>
                   val password =
                     config.getString("graph.neo4j.auth.password")
-                  Some(AuthTokens.basic(user, password))
+                  Some((user, password))
                 }
               case i =>
                 val user =
@@ -167,12 +163,12 @@ object Application {
                 val password =
                   args.lift(args.indexOf("-nPassword") + 1)
                     .getOrElse(throw new IllegalArgumentException("-nPassword"))
-                Some(AuthTokens.basic(user, password))
+                Some((user, password))
             }
           auth match {
-            case Some(a) =>
+            case Some((user, pass)) =>
               println(s"Connecting to authenticated Neo4j at $address")
-              Neo4jGraph.remote(address, a)
+              Neo4jGraph.remote(address, user, pass)
             case _ =>
               println(s"Connecting to unauthenticated Neo4j at $address")
               Neo4jGraph.remote(address)

@@ -60,4 +60,4 @@ lazy val akkaAdapter =
       libraryDependencies ++=
         Dependencies.playWS
     )
-    .dependsOn(graphCore, akkaLayer)
+    .dependsOn(graphCore)

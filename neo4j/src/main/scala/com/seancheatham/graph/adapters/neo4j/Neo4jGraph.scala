@@ -21,6 +21,12 @@ object Neo4jGraph {
     )
 
   def remote(address: String,
+             user: String,
+             password: String)(implicit nodeFactory: Node.Factory,
+                               edgeFactory: Edge.Factory): RemoteNeo4jGraph =
+    remote(address, AuthTokens.basic(user, password))
+
+  def remote(address: String,
              auth: AuthToken)
             (implicit nodeFactory: Node.Factory,
              edgeFactory: Edge.Factory): RemoteNeo4jGraph =

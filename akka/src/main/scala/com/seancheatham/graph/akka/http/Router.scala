@@ -10,7 +10,6 @@ import play.api.libs.json.{JsValue, Json}
   */
 object Router {
 
-
   /**
     * Generates a router with basic CRUD functionality for graph operations.
     *
