@@ -1,5 +1,7 @@
 Graph library/interface with adapter(s), written in Scala
 
+[![Build Status](https://travis-ci.org/SeanCheatham/scala-graph.svg?branch=master)](https://travis-ci.org/SeanCheatham/scala-graph)
+
 # Overview
 This library serves two purposes:
 1. Provide a common abstraction for accessing and manipulating a graph data structure
