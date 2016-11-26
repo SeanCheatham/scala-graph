@@ -1,7 +1,10 @@
 package com.seancheatham.graph.adapters.akka
 
+import java.io.{CharArrayReader, InputStream}
+
 import akka.actor.{ActorSystem, Terminated}
 import akka.stream.ActorMaterializer
+import com.fasterxml.jackson.core.{JsonFactory, JsonToken}
 import com.seancheatham.graph.{Edge, Graph, Node, Path}
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.{JsObject, JsValue, Json}
@@ -57,12 +60,20 @@ case class RemoteHttpGraph(address: String,
       }
   }
 
-  private def streamToIterator(res: StreamedResponse) =
-    res.body.runFold(Iterator[JsValue]()) {
+  private def streamToIterator(res: StreamedResponse): Future[Iterator[JsValue]] = {
+    val f = new JsonFactory()
+    res.body.runFold(Iterator[Char]()) {
       case (acc, str) =>
-        val json = Json.parse(str.utf8String)
-        acc ++ Iterator.single(json)
+        acc ++ str.utf8String.toIterator
+    } map { charIterator =>
+      val r = new InputStream {
+        def read() =
+          if (charIterator.hasNext) charIterator.next() else -1
+      }
+      // TODO: Do actual JSON stream parsing
+      Json.parse(r).as[Seq[JsValue]].toIterator
     }
+  }
 
   def addNode[N <: Node](label: String, data: Map[String, JsValue]): N =
     path(s"/nodes")
@@ -81,7 +92,12 @@ case class RemoteHttpGraph(address: String,
   def getNode[N <: Node](id: String): Option[N] =
     path(s"/nodes/$id")
       .get()
-      .map(r => Some(Node.fromJson(r.json.as[JsObject]).asInstanceOf[N]))
+      .map{
+        case r if r.status == 200 =>
+          Some(Node.fromJson(r.json.as[JsObject]).asInstanceOf[N])
+        case r =>
+          None
+      }
       .awaitForever
 
   def getNodes[N <: Node](label: Option[String], data: Map[String, JsValue]): TraversableOnce[N] =
@@ -96,7 +112,12 @@ case class RemoteHttpGraph(address: String,
   def getEdge[E <: Edge](id: String): Option[E] =
     path(s"/edges/$id")
       .get()
-      .map(r => Some(Edge.fromJson(r.json.as[JsObject]).asInstanceOf[E]))
+      .map{
+        case r if r.status == 200 =>
+          Some(Edge.fromJson(r.json.as[JsObject]).asInstanceOf[E])
+        case r =>
+          None
+      }
       .awaitForever
 
   private def getEdges[E <: Edge](p: String,

@@ -15,7 +15,10 @@ object CustomMarshallers {
       HttpResponse(
         entity = HttpEntity.Chunked.fromData(
           ContentTypes.`application/json`,
-          Source.fromIterator(() => values map (v => ByteString(v.toString)))
+          // TODO: Make this an actual iterator/stream
+          Source.single(
+            ByteString(Json.toJson(values.toVector).toString)
+          )
         )
       )
     }

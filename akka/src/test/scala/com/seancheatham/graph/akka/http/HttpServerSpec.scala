@@ -144,7 +144,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
         val edges =
           entityAs[Iterator[JsValue]].toVector
             .map(_.as[JsObject])
-            .map(Edge.fromJson(_, graph.getNode[Node] _, graph.getNode[Node] _))
+            .map(Edge.fromJson)
 
         status shouldEqual StatusCodes.OK
 
@@ -167,7 +167,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
         val edges =
           entityAs[Iterator[JsValue]].toVector
             .map(_.as[JsObject])
-            .map(Edge.fromJson(_, graph.getNode[Node] _, graph.getNode[Node] _))
+            .map(Edge.fromJson)
 
         status shouldEqual StatusCodes.OK
 
@@ -190,7 +190,7 @@ class HttpServerSpec extends WordSpec with Matchers with ScalatestRouteTest {
         val edges =
           entityAs[Iterator[JsValue]].toVector
             .map(_.as[JsObject])
-            .map(Edge.fromJson(_, graph.getNode[Node] _, graph.getNode[Node] _))
+            .map(Edge.fromJson)
 
         status shouldEqual StatusCodes.OK
 
