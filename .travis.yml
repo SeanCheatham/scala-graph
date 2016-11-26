@@ -14,16 +14,13 @@ services:
 
 matrix:
   include:
-    - scala: 2.10.6
-      jdk: oraclejdk7
     - scala: 2.11.8
       jdk: oraclejdk7
-    - scala: 2.10.6
-      jdk: oraclejdk8
     - scala: 2.11.8
       jdk: oraclejdk8
-    - scala: 2.12.0
-      jdk: oraclejdk8
+# play-json 2.5 is not yet ready for Scala 2.12, so can't use Scala 2.12 yet
+#    - scala: 2.12.0
+#      jdk: oraclejdk8
 
 
 before_install:
