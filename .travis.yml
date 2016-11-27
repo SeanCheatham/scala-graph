@@ -18,8 +18,13 @@ before_install:
   - docker pull neo4j
   - docker run -d --publish=7687:7687 --env=NEO4J_AUTH=none neo4j:3.0
 
+script: sbt testAndOptionallyShip
+
 after_success:
   - docker stop $(docker ps -a -q)
+  - openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in secring.gpg.enc -out local.secring.gpg -d
+  - openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in pubring.gpg.enc -out local.pubring.gpg -d
+  - openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in credentials.sbt.enc -out local.credentials.sbt -d
 
 ## Implement when deployment is ready
 #  - >
