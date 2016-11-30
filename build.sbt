@@ -1,3 +1,4 @@
+
 lazy val commonSettings =
   Seq(
     organization := "com.seancheatham",
@@ -7,14 +8,21 @@ lazy val commonSettings =
         Dependencies.typesafe ++
         Dependencies.test ++
         Dependencies.logging
-  )
+  ) ++ Publish.settings
+
+lazy val root =
+  project
+    .in(file("."))
+    .settings(commonSettings: _*)
+    .aggregate(graphCore, memoryAdapter, graphNeo4jAdapter, akkaLayer, akkaAdapter)
 
 lazy val graphCore =
   project
     .in(file("core"))
     .settings(commonSettings: _*)
     .settings(
-      name := "graph-core"
+      name := "graph-core",
+      publish := {}
     )
 
 lazy val memoryAdapter =
@@ -45,8 +53,8 @@ lazy val akkaLayer =
       resolvers += Resolver.bintrayRepo("hseeberger", "maven"),
       libraryDependencies ++=
         Dependencies.akka ++
-        Dependencies.akkaHttp :+
-        ("de.heikoseeberger" %% "akka-http-play-json" % "1.10.1")
+          Dependencies.akkaHttp :+
+          ("de.heikoseeberger" %% "akka-http-play-json" % "1.10.1")
     )
     // TODO: Adapter by dependency injection
     .dependsOn(graphCore, memoryAdapter, graphNeo4jAdapter)
@@ -65,3 +73,5 @@ lazy val akkaAdapter =
       memoryAdapter % "test->test",
       akkaLayer % "test->test"
     )
+
+
