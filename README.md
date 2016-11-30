@@ -15,6 +15,23 @@ My current focus is on providing an abstraction for the *Neo4j* graph database. 
 This library is written in Scala.  It _might_ interoperate with other JVM languages, but I make no guarantees.
 
 ## Include the library in your project.
+In the *build.sbt* file located in your project root:
+```scala
+// The core definitions library:
+libraryDependencies += "com.seancheatham" %% "graph-core" % "0.0.1"
+
+// To run a basic, in-memory graph:
+libraryDependencies += "com.seancheatham" %% "graph-memory-adapter" % "0.0.1"
+
+// To connect to a Neo4j graph:
+libraryDependencies += "com.seancheatham" %% "graph-neo4j-adapter" % "0.0.1"
+
+// To expose a graph as an HTTP server:
+libraryDependencies += "com.seancheatham" %% "graph-akka-layer" % "0.0.1"
+
+// To connect to an expopsed HTTP graph server:
+libraryDependencies += "com.seancheatham" %% "graph-akka-adapter" % "0.0.1"
+```
 ## Create a Graph instance
 ### Create a mutable in-memory graph:
 ```scala
