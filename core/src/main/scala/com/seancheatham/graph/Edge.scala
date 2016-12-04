@@ -2,8 +2,6 @@ package com.seancheatham.graph
 
 import play.api.libs.json._
 
-import scala.util.Try
-
 /**
   * The core representation of an "Edge" between two [[com.seancheatham.graph.Node]]s.  If a Node is a
   * container of data then an Edge represents a relationship between two containers.  An edge itself
@@ -84,8 +82,14 @@ object Edge {
 
   type Factory = Construct => Graph => Edge
 
-  implicit final def defaultFactory(construct: Construct)(nGraph: Graph): DefaultEdge =
-    DefaultEdge(
+  /**
+    * The default/base factory for edges.  Will construct a [[DefaultLazyEdge]].
+    * @param construct The edge construct to apply
+    * @param nGraph The edge's parent graph
+    * @return An edge
+    */
+  implicit final def defaultFactory(construct: Construct)(nGraph: Graph): Edge =
+    new DefaultLazyEdge(
       construct._1,
       construct._2,
       construct._3,
@@ -97,8 +101,8 @@ object Edge {
     fromJson(json, graph.getNode[Node] _, graph.getNode[Node] _)
 
   def fromJson(json: JsObject,
-               _1: Node,
-               _2: Node)(implicit graph: Graph): Edge =
+               _1: => Node,
+               _2: => Node)(implicit graph: Graph): Edge =
     graph.edgeFactory(
       (
         (json \ "id").as[String],
@@ -154,6 +158,24 @@ object Edge {
         )
     )
 
+}
+
+/**
+  * An edge whose _1 and _2 are lazy evaluated
+  * @param id The Edge's ID
+  * @param label The Edge's Label
+  * @param __1 The Edge's (lazy) _1
+  * @param __2 The Edge's (lazy) _2
+  * @param data The Edge's Data
+  * @param graph The Edge's parent graph
+  */
+class DefaultLazyEdge(val id: String,
+                      val label: String,
+                      __1: => Node,
+                      __2: => Node,
+                      val data: Map[String, JsValue])(implicit val graph: Graph) extends Edge {
+  def _1: Node = __1
+  def _2: Node = __2
 }
 
 case class DefaultEdge(id: String,
