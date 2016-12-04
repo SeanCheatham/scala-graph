@@ -8,16 +8,16 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp
-import org.apache.hadoop.hbase.filter.Filter.ReturnCode
-import org.apache.hadoop.hbase.filter.{Filter, FilterBase, FilterList, SingleColumnValueFilter}
+import org.apache.hadoop.hbase.filter.{Filter, FilterList, SingleColumnValueFilter}
 import play.api.libs.json._
 
-import scala.util.{Failure, Success, Try}
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 
 /**
   * A Graph adapter which connects to a HBase instance via zookeeper.  Uses the HBase API to access it.
-  * @param connection An HBase connection
+  *
+  * @param connection     An HBase connection
   * @param nodesTableName The name of the table housing the nodes
   * @param edgesTableName The name of the table housing the edges
   */
@@ -86,9 +86,14 @@ class HBaseGraph(connection: Connection,
     val id =
       UUID.randomUUID().toString
     val put =
-      new Put(id.getBytes)
-        .addColumn(metaFamilyName, "label".getBytes, label.getBytes)
-        .addColumn(dataFamilyName, "data".getBytes, JsObject(data).toString.getBytes)
+      data.flatList()
+        .foldLeft(
+          new Put(id.getBytes)
+            .addColumn(metaFamilyName, "label".getBytes, label.getBytes)
+        ) {
+          case (p, (key, value)) =>
+            p.addColumn(dataFamilyName, key.getBytes, value.toString.getBytes)
+        }
     nodesTable.put(put)
     getNode[N](id).get
   }
@@ -97,11 +102,16 @@ class HBaseGraph(connection: Connection,
     val id =
       UUID.randomUUID().toString
     val put =
-      new Put(id.getBytes)
-        .addColumn(metaFamilyName, "label".getBytes, label.getBytes)
-        .addColumn(metaFamilyName, "_1".getBytes, _1.id.getBytes)
-        .addColumn(metaFamilyName, "_2".getBytes, _2.id.getBytes)
-        .addColumn(dataFamilyName, "data".getBytes, JsObject(data).toString.getBytes)
+      data.flatList()
+        .foldLeft(
+          new Put(id.getBytes)
+            .addColumn(metaFamilyName, "label".getBytes, label.getBytes)
+            .addColumn(metaFamilyName, "_1".getBytes, _1.id.getBytes)
+            .addColumn(metaFamilyName, "_2".getBytes, _2.id.getBytes)
+        ) {
+          case (p, (key, value)) =>
+            p.addColumn(dataFamilyName, key.getBytes, value.toString.getBytes)
+        }
     edgesTable.put(put)
     getEdge[E](id).get
   }
@@ -151,7 +161,7 @@ class HBaseGraph(connection: Connection,
   def getEgressEdges[E <: Edge](node: Node, edgeLabel: Option[String], edgeData: Map[String, JsValue]): TraversableOnce[E] = {
     val scan =
       new Scan()
-        .setFilter{
+        .setFilter {
           val lFilter =
             edgeLabel.map(ScanHelper.labelFilter)
           val dFilters =
@@ -171,7 +181,7 @@ class HBaseGraph(connection: Connection,
   def getIngressEdges[E <: Edge](node: Node, edgeLabel: Option[String], edgeData: Map[String, JsValue]): TraversableOnce[E] = {
     val scan =
       new Scan()
-        .setFilter{
+        .setFilter {
           val lFilter =
             edgeLabel.map(ScanHelper.labelFilter)
           val dFilters =
@@ -189,14 +199,16 @@ class HBaseGraph(connection: Connection,
   }
 
   def removeNode(node: Node): Graph = {
+    (node.egressEdges().toIterator ++
+      node.ingressEdges())
+      .foreach(removeEdge)
     nodesTable.delete(new Delete(node.id.getBytes))
     this
   }
 
   def removeNodes(label: Option[String], data: Map[String, JsValue]): Graph = {
-    val toDelete =
-      getNodes[Node](label, data)
-    nodesTable.delete(toDelete.map(n => new Delete(n.id.getBytes)).toList.asJava)
+    getNodes[Node](label, data)
+      .foreach(removeNode)
     this
   }
 
@@ -207,16 +219,22 @@ class HBaseGraph(connection: Connection,
 
   def updateNode[N <: Node](node: N)(changes: (String, JsValue)*): N = {
     val put =
-      new Put(node.id.getBytes)
-        .addColumn(dataFamilyName, "data".getBytes, JsObject(node.data ++ changes).toString.getBytes)
+      changes.toMap.flatList()
+        .foldLeft(new Put(node.id.getBytes)) {
+          case (p, (key, value)) =>
+            p.addColumn(dataFamilyName, key.getBytes, value.toString.getBytes)
+        }
     nodesTable.put(put)
     getNode[N](node.id).get
   }
 
   def updateEdge[E <: Edge](edge: E)(changes: (String, JsValue)*): E = {
     val put =
-      new Put(edge.id.getBytes)
-        .addColumn(dataFamilyName, "data".getBytes, JsObject(edge.data ++ changes).toString.getBytes)
+      changes.toMap.flatList()
+        .foldLeft(new Put(edge.id.getBytes)) {
+          case (p, (key, value)) =>
+            p.addColumn(dataFamilyName, key.getBytes, value.toString.getBytes)
+        }
     edgesTable.put(put)
     getEdge[E](edge.id).get
   }
@@ -239,9 +257,9 @@ object HBaseGraph {
     hbaseConfig.set("hbase.zookeeper.property.clientPort", zookeeperPort.toString)
     hbaseConfig.set("hbase.zookeeper.quorum", zookeeperAddress)
     // TODO: Needed?
-//    hbaseConfig.set("zookeeper.znode.parent", "/hbase-unsecure")
+    //    hbaseConfig.set("zookeeper.znode.parent", "/hbase-unsecure")
     val connection =
-      ConnectionFactory.createConnection(hbaseConfig)
+    ConnectionFactory.createConnection(hbaseConfig)
 
     new HBaseGraph(connection, nodesTableName, edgesTableName)
 
@@ -255,11 +273,13 @@ object HBaseGraph {
 
   object ScanHelper {
 
-    def dataFilters(data: Map[String, JsValue]): Iterable[Filter] =
-      data.map {
-        case (key, value) =>
-          new SingleColumnValueFilter(metaFamilyName, key.getBytes, CompareOp.EQUAL, value.toString.getBytes)
-      }
+    def dataFilters(data: Map[String, JsValue],
+                    prefix: String = "data."): Iterable[Filter] =
+      data.flatList(prefix)
+        .map {
+          case (key, value) =>
+            new SingleColumnValueFilter(metaFamilyName, key.getBytes, CompareOp.EQUAL, value.toString.getBytes)
+        }
 
     def labelFilter(label: String) =
       new SingleColumnValueFilter(metaFamilyName, "label".getBytes, CompareOp.EQUAL, label.getBytes)
@@ -271,39 +291,37 @@ object HBaseGraph {
     }
   }
 
-  object CellHelper {
-    def asData(cell: Cell) =
+  implicit class JsMapHelper(data: Map[String, JsValue]) {
+    def flatList(prefix: String = "data."): Map[String, JsValue] =
+      data.flatMap {
+        case (key, value: JsObject) =>
+          value.value.toMap.flatList(prefix + key + ".")
+        case (key, value) =>
+          Vector(
+            (prefix + key) -> value
+          )
+      }
+
+    def unflattenList(prefix: String = "data."): Map[String, JsValue] =
+      data
+        .map { case (key, value) => key.substring(prefix.length) -> value }
+        .flatMap {
+          case (key, value) =>
+            key.split('.')
+              .foldRight(value) {
+                case (part, v) =>
+                  Json.obj(part -> v)
+              }
+              .as[Map[String, JsValue]]
+        }
+  }
+
+  implicit class CellHelper(cell: Cell) {
+    def asData =
       Json.parse(cell.getValueArray).as[Map[String, JsValue]]
 
-    def asString(cell: Cell) =
+    def asString =
       new String(cell.getValueArray)
-
-    def filterLabelData(cell: Cell)(label: Option[String], data: Map[String, JsValue]): ReturnCode = {
-      val key =
-        new String(cell.getQualifierArray)
-      key match {
-        case "label" =>
-          label.fold(ReturnCode.INCLUDE_AND_NEXT_COL)(l =>
-            if (l == asString(cell))
-              ReturnCode.INCLUDE_AND_NEXT_COL
-            else
-              ReturnCode.NEXT_ROW
-          )
-        case "data" =>
-          if (data.isEmpty)
-            ReturnCode.INCLUDE_AND_NEXT_COL
-          else {
-            val colData =
-              asData(cell)
-            if (data forall (kv => colData(kv._1) == kv._2))
-              ReturnCode.INCLUDE_AND_NEXT_COL
-            else
-              ReturnCode.NEXT_ROW
-          }
-        case _ =>
-          ReturnCode.NEXT_COL
-      }
-    }
   }
 
   implicit class ResultHelper(result: Result) {
@@ -313,7 +331,12 @@ object HBaseGraph {
       val label =
         new String(result.getValue(metaFamilyName, "label".getBytes))
       val data =
-        Json.parse(result.getValue(dataFamilyName, "data".getBytes)).as[Map[String, JsValue]]
+        result.getFamilyMap(dataFamilyName).asScala
+          .map {
+            case (key, value) => new String(key) -> Json.parse(value)
+          }
+          .toMap
+          .unflattenList()
       (id, label, data)
     }
 
@@ -327,7 +350,12 @@ object HBaseGraph {
       val _2Id =
         new String(result.getValue(metaFamilyName, "_2".getBytes))
       val data =
-        Json.parse(result.getValue(dataFamilyName, "data".getBytes)).as[Map[String, JsValue]]
+        result.getFamilyMap(dataFamilyName).asScala
+          .map {
+            case (key, value) => new String(key) -> Json.parse(value)
+          }
+          .toMap
+          .unflattenList()
       (id, label, graph.getNode[Node](_1Id).get, graph.getNode[Node](_2Id).get, data)
     }
   }
