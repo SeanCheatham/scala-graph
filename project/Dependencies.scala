@@ -62,7 +62,8 @@ object Dependencies {
 
   val bigTable =
     Seq(
-      "com.google.cloud.bigtable" % "bigtable-hbase-1.2" % "0.9.4"
+      "com.google.cloud.bigtable" % "bigtable-hbase-1.2" % "0.9.4",
+      "io.netty" % "netty-tcnative-boringssl-static" % "1.1.33.Fork19"
     )
 
 }

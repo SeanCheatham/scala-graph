@@ -27,13 +27,13 @@ class HBaseGraph(connection: Connection,
 
   import HBaseGraph._
 
-  private val admin =
+  val admin: Admin =
     connection.getAdmin
 
-  private val nTName =
+  val nTName: TableName =
     TableName.valueOf(nodesTableName.getBytes)
 
-  private val eTName =
+  val eTName: TableName =
     TableName.valueOf(edgesTableName.getBytes)
 
   Try(admin.getTableDescriptor(nTName)) match {
@@ -70,10 +70,10 @@ class HBaseGraph(connection: Connection,
       td
   }
 
-  private val nodesTable =
+  val nodesTable: Table =
     connection.getTable(nTName)
 
-  private val edgesTable =
+  val edgesTable: Table =
     connection.getTable(eTName)
 
   def shutdown(): Unit = {

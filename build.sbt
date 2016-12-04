@@ -14,7 +14,8 @@ lazy val root =
   project
     .in(file("."))
     .settings(commonSettings: _*)
-    .aggregate(graphCore, memoryAdapter, graphNeo4jAdapter, akkaLayer, akkaAdapter)
+    .settings(packagedArtifacts := Map.empty)
+    .aggregate(graphCore, memoryAdapter, graphNeo4jAdapter, akkaLayer, akkaAdapter, hBaseAdapter, bigtableAdapter)
 
 lazy val graphCore =
   project
@@ -87,9 +88,9 @@ lazy val hBaseAdapter =
       graphCore % "compile->compile;test->test"
     )
 
-lazy val bigTableAdapter =
+lazy val bigtableAdapter =
   project
-    .in(file("bigTable"))
+    .in(file("bigtable"))
     .settings(commonSettings: _*)
     .settings(
       name := "graph-big-table-adapter",
