@@ -74,4 +74,32 @@ lazy val akkaAdapter =
       akkaLayer % "test->test"
     )
 
+lazy val hBaseAdapter =
+  project
+    .in(file("hbase"))
+    .settings(commonSettings: _*)
+    .settings(
+      name := "graph-hbase-adapter",
+      libraryDependencies ++=
+        Dependencies.hbase
+    )
+    .dependsOn(
+      graphCore % "compile->compile;test->test"
+    )
+
+lazy val bigTableAdapter =
+  project
+    .in(file("bigTable"))
+    .settings(commonSettings: _*)
+    .settings(
+      name := "graph-big-table-adapter",
+      libraryDependencies ++=
+        Dependencies.hbase ++
+          Dependencies.bigTable
+    )
+    .dependsOn(
+      graphCore % "compile->compile;test->test",
+      hBaseAdapter
+    )
+
 

@@ -51,4 +51,18 @@ object Dependencies {
     )
   }
 
+  val hbase = {
+    val version = "1.2.4"
+    Seq(
+      "org.apache.hbase" % "hbase-client" % version,
+      "org.apache.hbase" % "hbase-common" % version,
+      "org.apache.hadoop" % "hadoop-common" % "2.6.5"
+    )
+  }
+
+  val bigTable =
+    Seq(
+      "com.google.cloud.bigtable" % "bigtable-hbase-1.2" % "0.9.4"
+    )
+
 }
