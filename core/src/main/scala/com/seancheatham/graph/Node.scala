@@ -121,7 +121,7 @@ object Node {
         )
     )
 
-  implicit def reads(implicit graph: Graph): Reads[(String, String, Map[String, JsValue])] =
+  implicit val reads: Reads[Construct] =
     Reads[Construct](
       json =>
         JsSuccess(
