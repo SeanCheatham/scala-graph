@@ -79,6 +79,7 @@ class HBaseGraph(connection: Connection,
   def shutdown(): Unit = {
     nodesTable.close()
     edgesTable.close()
+    admin.close()
     connection.close()
   }
 

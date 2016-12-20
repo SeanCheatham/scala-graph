@@ -1,7 +1,7 @@
 package com.seancheatham.graph.adapters.memory
 
 import com.seancheatham.graph.{Edge, Graph, Node, Path}
-import play.api.libs.json.JsValue
+import play.api.libs.json.{JsObject, JsSuccess, JsValue, Reads}
 
 case class ImmutableGraph(private val nodeConstructs: Map[String, Node.Construct] = Map.empty,
                           private val edgeConstructs: Map[String, Edge.Construct] = Map.empty)
@@ -40,10 +40,13 @@ case class ImmutableGraph(private val nodeConstructs: Map[String, Node.Construct
     newGraph
   }
 
-  def addNode[N <: Node](label: String,
-                         data: Map[String, JsValue]) = {
-    val id =
-      nextNodeId
+  /**
+    * A convenience for adding a node with a specific ID
+    */
+  def addNode[N <: Node](id: String,
+                         label: String,
+                         data: Map[String, JsValue]): N = {
+    require(!nodeConstructs.contains(id), s"Node with requested id $id already exists")
     val construct =
       (id, label, data)
     val g1 =
@@ -53,12 +56,15 @@ case class ImmutableGraph(private val nodeConstructs: Map[String, Node.Construct
     nodeFactory(construct)(g1).asInstanceOf[N]
   }
 
-  def addEdge[E <: Edge](label: String,
+  def addNode[N <: Node](label: String,
+                         data: Map[String, JsValue]) =
+    addNode[N](nextNodeId, label, data)
+
+  def addEdge[E <: Edge](id: String,
+                         label: String,
                          _1: Node,
                          _2: Node,
                          data: Map[String, JsValue]) = {
-    val id =
-      nextEdgeId
     val construct =
       (id, label, getNode[Node](_1.id).get, getNode[Node](_2.id).get, data)
     val g1 =
@@ -67,6 +73,12 @@ case class ImmutableGraph(private val nodeConstructs: Map[String, Node.Construct
       )(nodeFactory, edgeFactory)
     edgeFactory(construct)(g1).asInstanceOf[E]
   }
+
+  def addEdge[E <: Edge](label: String,
+                         _1: Node,
+                         _2: Node,
+                         data: Map[String, JsValue]) =
+    addEdge[E](nextEdgeId, label, _1, _2, data)
 
   def getNode[N <: Node](id: String) =
     nodeConstructs get id map (nodeFactory(_)(this).asInstanceOf[N])
@@ -261,4 +273,29 @@ case class ImmutableGraph(private val nodeConstructs: Map[String, Node.Construct
 
     Vector(path)
   }
+}
+
+object ImmutableGraph {
+  implicit def read(implicit nodeFactory: Node.Factory = Node.defaultFactory,
+                    edgeFactory: Edge.Factory = Edge.defaultFactory): Reads[ImmutableGraph] =
+    Reads[ImmutableGraph] {
+      json =>
+        JsSuccess(
+          (json \ "edges").as[Seq[JsObject]]
+            .foldLeft(
+              ImmutableGraph(
+                (json \ "nodes")
+                  .as[Seq[JsObject]]
+                  .map(_.as[Node.Construct](Node.reads))
+                  .map(nc => nc._1 -> nc)
+                  .toMap
+              )()
+            ) {
+              case (g, j) =>
+                val (id, label, _1, _2, data) =
+                  j.as[Edge.Construct](Edge.reads(g))
+                g.addEdge(id, label, _1, _2, data)
+            }
+        )
+    }
 }

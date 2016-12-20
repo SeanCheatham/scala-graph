@@ -3,7 +3,7 @@ package com.seancheatham.graph.adapters.memory
 import java.util.UUID
 
 import com.seancheatham.graph.{Edge, Graph, Node, Path}
-import play.api.libs.json.JsValue
+import play.api.libs.json.{JsObject, JsSuccess, JsValue, Reads}
 
 import scala.collection.mutable
 
@@ -22,27 +22,39 @@ class MutableGraph(override implicit val nodeFactory: Node.Factory = Node.defaul
       edges.toMap.mapValues(_.toConstruct)
     )
 
-  def addNode[N <: Node](label: String,
-                         data: Map[String, JsValue]) = {
-    val id =
-      UUID.randomUUID().toString
+  /**
+    * A convenience for adding a node with a specific ID
+    */
+  def addNode[N <: Node](id: String,
+                         label: String,
+                         data: Map[String, JsValue]): N = {
+    require(!nodes.contains(id), s"Node with requested id $id already exists")
     val node =
       nodeFactory(id, label, data)(this).asInstanceOf[N]
     nodes += (id -> node)
     node
   }
 
-  def addEdge[E <: Edge](label: String,
+  def addNode[N <: Node](label: String,
+                         data: Map[String, JsValue]) =
+    addNode[N](UUID.randomUUID().toString, label, data)
+
+  def addEdge[E <: Edge](id: String,
+                         label: String,
                          _1: Node,
                          _2: Node,
                          data: Map[String, JsValue]) = {
-    val id =
-      UUID.randomUUID().toString
     val edge =
       edgeFactory(id, label, _1, _2, data)(this).asInstanceOf[E]
     edges += (id -> edge)
     edge
   }
+
+  def addEdge[E <: Edge](label: String,
+                         _1: Node,
+                         _2: Node,
+                         data: Map[String, JsValue]) =
+    addEdge[E](UUID.randomUUID().toString, label, _1, _2, data)
 
   def getNode[N <: Node](id: String) =
     nodes get id map (_.asInstanceOf[N])
@@ -149,4 +161,29 @@ class MutableGraph(override implicit val nodeFactory: Node.Factory = Node.defaul
               nodeLabels: Seq[String],
               edgeLabels: Seq[String]) =
     Path.bfs(start, end, nodeLabels, edgeLabels)
+}
+
+object MutableGraph {
+  implicit def read(implicit nodeFactory: Node.Factory = Node.defaultFactory,
+                    edgeFactory: Edge.Factory = Edge.defaultFactory): Reads[MutableGraph] =
+    Reads[MutableGraph] {
+      json =>
+        implicit val graph =
+          new MutableGraph()
+        (json \ "nodes").as[Seq[JsObject]]
+          .foreach {
+            n =>
+              val (id, label, data) =
+                n.as[Node.Construct](Node.reads)
+              graph.addNode[Node](id, label, data)
+          }
+        (json \ "edges").as[Seq[JsObject]]
+          .foreach {
+            e =>
+              val (id, label, _1, _2, data) =
+                e.as[Edge.Construct](Edge.reads(graph))
+              graph.addEdge[Edge](id, label, _1, _2, data)
+          }
+        JsSuccess(graph)
+    }
 }
