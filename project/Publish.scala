@@ -20,8 +20,8 @@ object Publish {
       pomExtra :=
         <scm>
           <url>git@github.com:seancheatham/scala-graph.git</url>
-          <connection>scm:git:git@github.com:scala-graph.git</connection>
-          <developerConnection>scm:git:git@github.com:scala-graph.git</developerConnection>
+          <connection>scm:git:git@github.com:seancheatham/scala-graph.git</connection>
+          <developerConnection>scm:git:git@github.com:seancheatham/scala-graph.git</developerConnection>
         </scm>
           <developers>
             <developer>
