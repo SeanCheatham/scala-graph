@@ -18,19 +18,28 @@ This library is written in Scala.  It _might_ interoperate with other JVM langua
 In the *build.sbt* file located in your project root:
 ```scala
 // The core definitions library:
-libraryDependencies += "com.seancheatham" %% "graph-core" % "0.0.1"
+libraryDependencies += "com.seancheatham" %% "graph-core" % "0.0.2"
 
 // To run a basic, in-memory graph:
-libraryDependencies += "com.seancheatham" %% "graph-memory-adapter" % "0.0.1"
+libraryDependencies += "com.seancheatham" %% "graph-memory-adapter" % "0.0.2"
 
 // To connect to a Neo4j graph:
-libraryDependencies += "com.seancheatham" %% "graph-neo4j-adapter" % "0.0.1"
+libraryDependencies += "com.seancheatham" %% "graph-neo4j-adapter" % "0.0.2"
 
 // To expose a graph as an HTTP server:
-libraryDependencies += "com.seancheatham" %% "graph-akka-layer" % "0.0.1"
+libraryDependencies += "com.seancheatham" %% "graph-akka-layer" % "0.0.2"
 
 // To connect to an expopsed HTTP graph server:
-libraryDependencies += "com.seancheatham" %% "graph-akka-adapter" % "0.0.1"
+libraryDependencies += "com.seancheatham" %% "graph-akka-adapter" % "0.0.2"
+
+// To connect to an HBase graph:
+libraryDependencies += "com.seancheatham" %% "graph-hbase-adapter" % "0.0.2"
+
+// To connect to a BigTable graph:
+libraryDependencies += "com.seancheatham" %% "graph-big-table-adapter" % "0.0.2"
+
+// To connect to a Document Storage graph:
+libraryDependencies += "com.seancheatham" %% "graph-document-storage-adapter" % "0.0.2"
 ```
 ## Create a Graph instance
 ### Create a mutable in-memory graph:
@@ -173,7 +182,7 @@ graph {
     // If graph.type == "neo4j-remote"
     neo4j {
         remote {
-            address = "bolt://127.0.0.1"
+            address = "bolt://127.0.0.2"
             user = "neo4j"
             password = "neo4j"
         }
