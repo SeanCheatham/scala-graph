@@ -22,8 +22,7 @@ lazy val graphCore =
     .in(file("core"))
     .settings(commonSettings: _*)
     .settings(
-      name := "graph-core",
-      publish := {}
+      name := "graph-core"
     )
 
 lazy val memoryAdapter =
