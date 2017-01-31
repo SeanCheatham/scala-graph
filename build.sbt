@@ -15,7 +15,7 @@ lazy val graph =
     .in(file("."))
     .settings(commonSettings: _*)
     .settings(packagedArtifacts := Map.empty)
-    .aggregate(graphCore, memoryAdapter, graphNeo4jAdapter, akkaLayer, akkaAdapter, hBaseAdapter, bigtableAdapter)
+    .aggregate(graphCore, memoryAdapter, graphNeo4jAdapter, akkaLayer, akkaAdapter, hBaseAdapter, bigtableAdapter, documentStorageAdapter)
 
 lazy val graphCore =
   project
