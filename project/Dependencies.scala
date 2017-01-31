@@ -66,4 +66,9 @@ object Dependencies {
       "io.netty" % "netty-tcnative-boringssl-static" % "1.1.33.Fork19"
     )
 
+  val documentStorage =
+    Seq(
+      "com.seancheatham" %% "storage-core" % "0.1.3"
+    )
+
 }

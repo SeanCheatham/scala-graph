@@ -8,6 +8,7 @@ import play.api.libs.json._
   * has a label, as well as extra meta-data represented as a JSON-serializable mapping.
   */
 abstract class Edge {
+
   import com.seancheatham.graph.utility.JsonTools.JsonMapHelper
 
   /**
@@ -37,6 +38,7 @@ abstract class Edge {
 
   /**
     * The "last"/"b"/"end" node
+    *
     * @return
     */
   def _2: Node
@@ -68,6 +70,7 @@ abstract class Edge {
 
   /**
     * Exports this Edge as a [[com.seancheatham.graph.Edge#Construct]]
+    *
     * @return an Edge.EdgeConstruct
     */
   def toConstruct: Edge.Construct =
@@ -84,8 +87,9 @@ object Edge {
 
   /**
     * The default/base factory for edges.  Will construct a [[DefaultLazyEdge]].
+    *
     * @param construct The edge construct to apply
-    * @param nGraph The edge's parent graph
+    * @param nGraph    The edge's parent graph
     * @return An edge
     */
   implicit final def defaultFactory(construct: Construct)(nGraph: Graph): Edge =
@@ -109,22 +113,22 @@ object Edge {
         (json \ "label").as[String],
         _1,
         _2,
-        (json \ "data").as[Map[String, JsValue]]
-        )
+        (json \ "data").asOpt[Map[String, JsValue]].getOrElse(Map.empty)
+      )
     )(graph)
 
   @throws(classOf[java.util.NoSuchElementException])
   def fromJson[N1 <: Node, N2 <: Node](json: JsObject,
-                       getNode1: String => Option[N1],
-                       getNode2: String => Option[N2])(implicit graph: Graph): Edge =
+                                       getNode1: String => Option[N1],
+                                       getNode2: String => Option[N2])(implicit graph: Graph): Edge =
     graph.edgeFactory(
       (
         (json \ "id").as[String],
         (json \ "label").as[String],
         getNode1((json \ "_1").as[String]).get,
         getNode1((json \ "_2").as[String]).get,
-        (json \ "data").as[Map[String, JsValue]]
-        )
+        (json \ "data").asOpt[Map[String, JsValue]].getOrElse(Map.empty)
+      )
     )(graph)
 
   implicit class NodeEdgeSyntax(node: Node) {
@@ -132,17 +136,20 @@ object Edge {
       node -> label
   }
 
-  implicit val writes: Writes[Edge] =
-    Writes[Edge](
-      edge =>
+  implicit val writesConstruct: Writes[Construct] =
+    Writes[Construct](
+      construct =>
         Json.obj(
-          "id" -> edge.id,
-          "label" -> edge.label,
-          "_1" -> edge._1.id,
-          "_2" -> edge._2.id,
-          "data" -> edge.data
+          "id" -> construct._1,
+          "label" -> construct._2,
+          "_1" -> construct._3.id,
+          "_2" -> construct._4.id,
+          "data" -> construct._5
         )
     )
+
+  implicit val writes: Writes[Edge] =
+    Writes[Edge](edge => Json.toJson(edge.toConstruct))
 
   implicit def reads(implicit graph: Graph): Reads[Construct] =
     Reads[Construct](
@@ -153,7 +160,7 @@ object Edge {
             (json \ "label").as[String],
             graph.getNode[Node]((json \ "_1").as[String]).get,
             graph.getNode[Node]((json \ "_2").as[String]).get,
-            (json \ "data").as[Map[String, JsValue]]
+            (json \ "data").asOpt[Map[String, JsValue]].getOrElse(Map.empty)
           )
         )
     )
@@ -162,11 +169,12 @@ object Edge {
 
 /**
   * An edge whose _1 and _2 are lazy evaluated
-  * @param id The Edge's ID
+  *
+  * @param id    The Edge's ID
   * @param label The Edge's Label
-  * @param __1 The Edge's (lazy) _1
-  * @param __2 The Edge's (lazy) _2
-  * @param data The Edge's Data
+  * @param __1   The Edge's (lazy) _1
+  * @param __2   The Edge's (lazy) _2
+  * @param data  The Edge's Data
   * @param graph The Edge's parent graph
   */
 class DefaultLazyEdge(val id: String,
@@ -175,6 +183,7 @@ class DefaultLazyEdge(val id: String,
                       __2: => Node,
                       val data: Map[String, JsValue])(implicit val graph: Graph) extends Edge {
   def _1: Node = __1
+
   def _2: Node = __2
 }
 
@@ -194,8 +203,8 @@ case class DefaultWeightedEdge(id: String,
 object DefaultWeightedEdge {
   def apply(id: String,
             label: String,
-           _1: Node,
-           _2: Node,
+            _1: Node,
+            _2: Node,
             data: Map[String, JsValue])(implicit graph: Graph): DefaultWeightedEdge =
     DefaultWeightedEdge(
       id,
