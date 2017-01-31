@@ -24,7 +24,3 @@ after_success:
 
 after_failure:
   - docker stop $(docker ps -a -q)
-
-branches:
-  only:
-    - master
