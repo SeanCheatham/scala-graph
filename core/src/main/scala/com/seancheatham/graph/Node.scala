@@ -112,12 +112,15 @@ object Node {
     DefaultNode(construct._1, construct._2, construct._3)(nGraph)
 
   implicit val writes: Writes[Node] =
-    Writes[Node](
-      node =>
+    Writes[Node](node => Json.toJson(node.toConstruct))
+
+  implicit val writesConstruct: Writes[Construct] =
+    Writes[Construct](
+      construct =>
         Json.obj(
-          "id" -> node.id,
-          "label" -> node.label,
-          "data" -> node.data
+          "id" -> construct._1,
+          "label" -> construct._2,
+          "data" -> construct._3
         )
     )
 
@@ -128,7 +131,7 @@ object Node {
           (
             (json \ "id").as[String],
             (json \ "label").as[String],
-            (json \ "data").as[Map[String, JsValue]]
+            (json \ "data").asOpt[Map[String, JsValue]].getOrElse(Map.empty)
           )
         )
     )
@@ -138,7 +141,7 @@ object Node {
       (
         (json \ "id").as[String],
         (json \ "label").as[String],
-        (json \ "data").as[Map[String, JsValue]]
+        (json \ "data").asOpt[Map[String, JsValue]].getOrElse(Map.empty)
       )
     )(graph)
 

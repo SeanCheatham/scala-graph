@@ -10,7 +10,7 @@ lazy val commonSettings =
         Dependencies.logging
   ) ++ Publish.settings
 
-lazy val root =
+lazy val graph =
   project
     .in(file("."))
     .settings(commonSettings: _*)
@@ -102,4 +102,18 @@ lazy val bigtableAdapter =
       hBaseAdapter
     )
 
-
+lazy val documentStorageAdapter =
+  project
+    .in(file("documentStorage"))
+    .settings(commonSettings: _*)
+    .settings(
+      name := "graph-document-storage-adapter",
+      libraryDependencies ++=
+        Dependencies.documentStorage ++
+        Seq(
+          "com.seancheatham" %% "storage-firebase" % "0.1.3" % Test
+        )
+    )
+    .dependsOn(
+      graphCore % "compile->compile;test->test"
+    )

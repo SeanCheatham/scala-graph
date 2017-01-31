@@ -1,26 +1,25 @@
 sudo: true
-
 dist: trusty
-
 cache:
   directories:
-    - $HOME/.ivy2
-    - $HOME/.sbt
-
+  - "$HOME/.ivy2"
+  - "$HOME/.sbt"
 language: scala
 scala: 2.11.8
 jdk: oraclejdk8
-
 services:
-  - docker
-
+- docker
 before_install:
-  - docker pull neo4j
-  - docker run -d --publish=7687:7687 --env=NEO4J_AUTH=none neo4j:3.0
-  - ./hbase/start-hbase.sh
-
+- openssl aes-256-cbc -K $encrypted_2189faa4f460_key -iv $encrypted_2189faa4f460_iv
+  -in continuousIntegration.json.enc -out /tmp/google_cloud_credentials.json -d
+- docker pull neo4j
+- docker run -d --publish=7687:7687 --env=NEO4J_AUTH=none neo4j:3.0
+- "./hbase/start-hbase.sh"
 after_success:
-  - docker stop $(docker ps -a -q)
-
+- docker stop $(docker ps -a -q)
 after_failure:
-  - docker stop $(docker ps -a -q)
+- docker stop $(docker ps -a -q)
+env:
+  global:
+  - FIREBASE_SERVICE_ACCOUNT_KEY_LOCATION=/tmp/google_cloud_credentials.json
+  - secure: LfAS+Z/gZK624oJf9ZAmG03iATmgMbbhgD92umxypONYlFJpiYQpQwTVEjflIx9CAHvGDHZ9iWkTM9Jel9CBbhkE/Uv7//QHrvckj87U5lQDw3Bns4Mco3sdp8hpCHsQH59k6PsvtJo5bLNyQb6rItfSEUlAQjcFKzHysgyY2lb2SmoRgz+8kq1K4lFmUfaCvTUkRpDL2qYJE/Dgp3bMB1iQ+tY5o4M+895vOwzd03GiTXWeJpuZra3tsyqKiMqRNhi+Ly7w7HuqoHtnpD3BSRowyvNnRzMW5S4HYzT6sr7mpdm3bo8linfImEdOHv6zkkLHTG7zjIy+SkP7YkOxTyW334RytNcgE9MtI0W/jQE0/GqQ7ldEq+BbrSsT57vr5WLdzKAhVvi+xDxZGZQTNYUWgOjs2ELcjCCKj4HpJfAyaKSVALW/USMuT2Mx+NHAlvcnK3Mm4/+pyaxxXW9B9JpJPZV34NsEYzBZSNsmaRM9UJPWrhGRLbbfsRsTF7/FwPKC+t8Rip4N0LGCPYWXAU0p0yQNcWryAlLeufGSGJQfx1r0H6wHPSru0Ij+N+jeZQgjM9rjFC4bqCwhUee81yXMHY/Lio83rNi0McbjgWNrbvwcmBjqMOw86vnaZC7NBSzNgDNfp8tpvCf7D6N6PndlaOg6zF6vuDOplcBOe5s=
